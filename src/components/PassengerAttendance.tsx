@@ -12,6 +12,7 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMockProfile, setIsMockProfile] = useState<boolean>(false);
   
   const todayDate = new Date().toISOString().split('T')[0];
 
@@ -19,10 +20,15 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
     const loadAttendance = async () => {
       setIsLoading(true);
       setError(null);
+      setIsMockProfile(false);
       try {
         const data = await fetchAttendance(passengerId, todayDate);
         setMorningStatus(data.morningShift);
         setEveningStatus(data.eveningShift);
+        // Check for mock profile flag (simulated test state)
+        if (passengerId.startsWith('mock-')) {
+          setIsMockProfile(true);
+        }
       } catch (err) {
         console.error("Failed to load attendance", err);
         setError("Failed to load attendance data. Please check your connection.");
@@ -56,6 +62,12 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
     <div className="attendance-dashboard">
       <h2>Passenger Attendance Dashboard</h2>
       
+      {isMockProfile && (
+        <div className="mock-badge" style={{ backgroundColor: '#fef3c7', color: '#d97706', padding: '8px', borderRadius: '4px', marginBottom: '16px', fontSize: '13px', fontWeight: 600 }}>
+          Test Mode: Rendering Mock Profile Data
+        </div>
+      )}
+
       {error && (
         <div className="error-banner">
           {error}
