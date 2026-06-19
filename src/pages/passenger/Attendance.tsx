@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ShiftType, AttendanceStatus } from '../../types/attendance';
 import { fetchAttendance, updateAttendance } from '../../services/attendanceService';
 
@@ -8,12 +8,18 @@ export const Attendance: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const loadData = async () => {
-      const data = await fetchAttendance(passengerId, today);
-      setMorningStatus(data.morningShift);
-      setEveningStatus(data.eveningShift);
+      setIsLoading(true);
+      try {
+        const data = await fetchAttendance(passengerId, today);
+        setMorningStatus(data.morningShift);
+        setEveningStatus(data.eveningShift);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -29,8 +35,14 @@ export const Attendance: React.FC = () => {
       <View style={styles.container}>
         <Text style={styles.headerTitle}>Attendance Dashboard</Text>
         
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Morning Shift</Text>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#12A14B" />
+          </View>
+        ) : (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Morning Shift</Text>
           <View style={styles.buttonGroup}>
             <TouchableOpacity 
               style={[styles.button, morningStatus === 'present' && styles.buttonActivePresent]}
@@ -63,7 +75,9 @@ export const Attendance: React.FC = () => {
               <Text style={[styles.buttonText, eveningStatus === 'absent' && styles.buttonTextActive]}>Absent</Text>
             </TouchableOpacity>
           </View>
-        </View>
+            </View>
+          </>
+        )}
         
         {/* Layout containers go here */}
       </View>
@@ -98,6 +112,11 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
     fontSize: 18,
