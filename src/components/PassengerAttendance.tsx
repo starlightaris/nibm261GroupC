@@ -7,6 +7,13 @@ interface PassengerAttendanceProps {
   passengerId: string;
 }
 
+/**
+ * PassengerAttendance Component
+ * 
+ * Renders a mobile-first UI for passengers to mark their attendance
+ * (present/absent) for morning and evening shifts. It syncs with Firestore
+ * in real-time and provides optimistic updates.
+ */
 export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passengerId }) => {
   const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');

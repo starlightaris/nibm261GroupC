@@ -4,11 +4,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from './pages/auth/LoginScreen';
 import DriverHome from './pages/DriverHome';
 import PassengerHome from './pages/PassengerHome';
+import { PassengerAttendance } from './components/PassengerAttendance';
 
 export type RootStackParamList = {
   Login: undefined;
   DriverHome: undefined;
   PassengerHome: undefined;
+  AttendanceDashboard: { passengerId: string };
 };
 
 
@@ -22,6 +24,8 @@ export default function App() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
+        {/* Wrapping Web Component for demonstration in routing */}
+        <Stack.Screen name="AttendanceDashboard" component={PassengerAttendance as any} initialParams={{ passengerId: 'mock-passenger-1' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
