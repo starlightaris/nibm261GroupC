@@ -10,17 +10,21 @@ interface PassengerAttendanceProps {
 export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passengerId }) => {
   const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const todayDate = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const loadAttendance = async () => {
+      setIsLoading(true);
       try {
         const data = await fetchAttendance(passengerId, todayDate);
         setMorningStatus(data.morningShift);
         setEveningStatus(data.eveningShift);
       } catch (err) {
         console.error("Failed to load attendance", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     loadAttendance();
@@ -41,41 +45,56 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
     <div className="attendance-dashboard">
       <h2>Passenger Attendance Dashboard</h2>
       
-      <div className="shift-card">
-        <h3>Morning Shift</h3>
-        <div className="button-group">
-          <button 
-            className={`toggle-btn ${morningStatus === 'present' ? 'active-present' : ''}`}
-            onClick={() => handleToggle('morning', 'present')}
-          >
-            Present
-          </button>
-          <button 
-            className={`toggle-btn ${morningStatus === 'absent' ? 'active-absent' : ''}`}
-            onClick={() => handleToggle('morning', 'absent')}
-          >
-            Absent
-          </button>
-        </div>
-      </div>
+      {isLoading ? (
+        <>
+          <div className="shift-card skeleton">
+            <div className="skeleton-title"></div>
+            <div className="skeleton-button-group"></div>
+          </div>
+          <div className="shift-card skeleton">
+            <div className="skeleton-title"></div>
+            <div className="skeleton-button-group"></div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="shift-card">
+            <h3>Morning Shift</h3>
+            <div className="button-group">
+              <button 
+                className={`toggle-btn ${morningStatus === 'present' ? 'active-present' : ''}`}
+                onClick={() => handleToggle('morning', 'present')}
+              >
+                Present
+              </button>
+              <button 
+                className={`toggle-btn ${morningStatus === 'absent' ? 'active-absent' : ''}`}
+                onClick={() => handleToggle('morning', 'absent')}
+              >
+                Absent
+              </button>
+            </div>
+          </div>
 
-      <div className="shift-card">
-        <h3>Evening Shift</h3>
-        <div className="button-group">
-          <button 
-            className={`toggle-btn ${eveningStatus === 'present' ? 'active-present' : ''}`}
-            onClick={() => handleToggle('evening', 'present')}
-          >
-            Present
-          </button>
-          <button 
-            className={`toggle-btn ${eveningStatus === 'absent' ? 'active-absent' : ''}`}
-            onClick={() => handleToggle('evening', 'absent')}
-          >
-            Absent
-          </button>
-        </div>
-      </div>
+          <div className="shift-card">
+            <h3>Evening Shift</h3>
+            <div className="button-group">
+              <button 
+                className={`toggle-btn ${eveningStatus === 'present' ? 'active-present' : ''}`}
+                onClick={() => handleToggle('evening', 'present')}
+              >
+                Present
+              </button>
+              <button 
+                className={`toggle-btn ${eveningStatus === 'absent' ? 'active-absent' : ''}`}
+                onClick={() => handleToggle('evening', 'absent')}
+              >
+                Absent
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
