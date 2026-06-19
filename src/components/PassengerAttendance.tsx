@@ -16,6 +16,11 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
           {/* Toggle buttons will go here */}
         </View>
 
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Evening Shift</Text>
+          {/* Toggle buttons will go here */}
+        </View>
+
       </View>
     </SafeAreaView>
   );
