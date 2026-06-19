@@ -28,3 +28,33 @@
   margin-bottom: 16px;
   font-weight: 500;
 }
+
+.button-group {
+  display: flex;
+  gap: 12px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.active-present {
+  background-color: #12A14B; /* vivid green */
+  color: #ffffff;
+  border-color: #12A14B;
+}
+
+.toggle-btn.active-absent {
+  background-color: #ef4444; /* red */
+  color: #ffffff;
+  border-color: #ef4444;
+}
