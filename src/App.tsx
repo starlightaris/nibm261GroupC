@@ -24,8 +24,7 @@ export default function App() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
-        {/* Wrapping Web Component for demonstration in routing */}
-        <Stack.Screen name="AttendanceDashboard" component={PassengerAttendance as any} initialParams={{ passengerId: 'mock-passenger-1' }} />
+        <Stack.Screen name="AttendanceDashboard" component={PassengerAttendance as any} initialParams={{ passengerId: 'mock-user-1' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
