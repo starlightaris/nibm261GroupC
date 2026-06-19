@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PassengerAttendance as AttendanceData, ShiftType, AttendanceStatus } from '../types/attendance';
+import { fetchAttendance, updateAttendance } from '../services/attendanceService';
 import './PassengerAttendance.css';
 
 interface PassengerAttendanceProps {
@@ -9,10 +10,31 @@ interface PassengerAttendanceProps {
 export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passengerId }) => {
   const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
+  
+  const todayDate = new Date().toISOString().split('T')[0];
 
-  const handleToggle = (shift: ShiftType, status: AttendanceStatus) => {
-    if (shift === 'morning') setMorningStatus(status);
-    if (shift === 'evening') setEveningStatus(status);
+  useEffect(() => {
+    const loadAttendance = async () => {
+      try {
+        const data = await fetchAttendance(passengerId, todayDate);
+        setMorningStatus(data.morningShift);
+        setEveningStatus(data.eveningShift);
+      } catch (err) {
+        console.error("Failed to load attendance", err);
+      }
+    };
+    loadAttendance();
+  }, [passengerId, todayDate]);
+
+  const handleToggle = async (shift: ShiftType, status: AttendanceStatus) => {
+    try {
+      if (shift === 'morning') setMorningStatus(status);
+      if (shift === 'evening') setEveningStatus(status);
+      await updateAttendance(passengerId, todayDate, shift, status);
+    } catch (err) {
+      console.error("Failed to update attendance", err);
+      // Rollback logic could go here
+    }
   };
 
   return (
