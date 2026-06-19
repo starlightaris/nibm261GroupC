@@ -17,3 +17,28 @@ export const getMockProfile = (id: string): PassengerAttendanceData => {
     eveningShift: 'pending',
   };
 };
+
+// Simulate Firestore delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const fetchPassengerAttendance = async (passengerId: string, date: string): Promise<PassengerAttendanceData> => {
+  // In a real app: const docSnap = await getDoc(doc(db, 'attendance', `${passengerId}_${date}`));
+  // For now, simulate network and return mock or default
+  await delay(600);
+  return getMockProfile(passengerId);
+};
+
+export const updateShiftStatus = async (
+  passengerId: string,
+  date: string,
+  shift: ShiftType,
+  status: AttendanceStatus
+): Promise<void> => {
+  // In a real app: await setDoc(doc(db, 'attendance', `${passengerId}_${date}`), { [`${shift}Shift`]: status }, { merge: true });
+  // For now, simulate update
+  await delay(400);
+  const profile = getMockProfile(passengerId);
+  if (shift === 'morning') profile.morningShift = status;
+  if (shift === 'evening') profile.eveningShift = status;
+  MOCK_PROFILES[passengerId] = profile;
+};
