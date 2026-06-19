@@ -11,18 +11,21 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
   const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   
   const todayDate = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const loadAttendance = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const data = await fetchAttendance(passengerId, todayDate);
         setMorningStatus(data.morningShift);
         setEveningStatus(data.eveningShift);
       } catch (err) {
         console.error("Failed to load attendance", err);
+        setError("Failed to load attendance data. Please check your connection.");
       } finally {
         setIsLoading(false);
       }
@@ -31,13 +34,21 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
   }, [passengerId, todayDate]);
 
   const handleToggle = async (shift: ShiftType, status: AttendanceStatus) => {
+    // Store previous states for rollback
+    const prevMorning = morningStatus;
+    const prevEvening = eveningStatus;
+    setError(null);
+
     try {
       if (shift === 'morning') setMorningStatus(status);
       if (shift === 'evening') setEveningStatus(status);
       await updateAttendance(passengerId, todayDate, shift, status);
     } catch (err) {
       console.error("Failed to update attendance", err);
-      // Rollback logic could go here
+      // Rollback optimistic update
+      setMorningStatus(prevMorning);
+      setEveningStatus(prevEvening);
+      setError("Failed to update status. Reverted to previous state.");
     }
   };
 
@@ -45,6 +56,12 @@ export const PassengerAttendance: React.FC<PassengerAttendanceProps> = ({ passen
     <div className="attendance-dashboard">
       <h2>Passenger Attendance Dashboard</h2>
       
+      {error && (
+        <div className="error-banner">
+          {error}
+        </div>
+      )}
+
       {isLoading ? (
         <>
           <div className="shift-card skeleton">

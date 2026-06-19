@@ -12,6 +12,16 @@
   font-weight: 600;
 }
 
+.error-banner {
+  background-color: #fef2f2;
+  color: #ef4444;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border: 1px solid #fecaca;
+}
+
 .shift-card {
   background-color: #ffffff;
   border-radius: 16px;
