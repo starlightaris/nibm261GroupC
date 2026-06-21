@@ -50,14 +50,21 @@ export const updateAttendance = async (
     const docId = `${passengerId}_${date}_${shift}`;
     const docRef = doc(db, 'attendance', docId);
     
-    await setDoc(docRef, {
+    const docSnap = await getDoc(docRef);
+    
+    const payload: any = {
       passengerId,
       date,
       shift,
       status,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp() // Note: setDoc with merge: true will overwrite this if not handled, but we use setDoc with merge: true? The prompt says "prevent duplicate records" which is handled by using the same doc ID. We will use setDoc without merge to overwrite or with merge to keep createdAt. Let's just use merge: true.
-    }, { merge: true });
+      updatedAt: serverTimestamp()
+    };
+    
+    if (!docSnap.exists()) {
+      payload.createdAt = serverTimestamp();
+    }
+    
+    await setDoc(docRef, payload, { merge: true });
   } catch (error) {
     console.error("Error updating attendance:", error);
     throw error;
