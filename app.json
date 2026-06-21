@@ -21,12 +21,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.CAMERA"
-      ],
-      "package": "com.anonymous.TransportApp"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
