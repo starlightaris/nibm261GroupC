@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { ShiftType, AttendanceStatus } from '../../types/attendance';
 import { fetchAttendance, updateAttendance } from '../../services/attendanceService';
 
@@ -31,9 +31,17 @@ export const Attendance: React.FC = () => {
   }, []);
 
   const handleToggle = async (shift: ShiftType, status: AttendanceStatus) => {
-    if (shift === 'morning') setMorningStatus(status);
-    if (shift === 'evening') setEveningStatus(status);
-    await updateAttendance(passengerId, today, shift, status);
+    try {
+      setIsLoading(true);
+      await updateAttendance(passengerId, today, shift, status);
+      if (shift === 'morning') setMorningStatus(status);
+      if (shift === 'evening') setEveningStatus(status);
+      Alert.alert('Success', 'Attendance saved successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save attendance. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
