@@ -1,8 +1,16 @@
 export type AuthStackParams = {
-  Login:                undefined;
-  PassengerSignUp:      undefined;
-  DriverSignUpDetails:  undefined;
-  DriverSignUpBus:      undefined;
+Login: undefined;
+  PassengerSignUp: undefined;
+  DriverSignUpDetails: undefined;
+  DriverSignUpBus: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    licenseNumber: string;
+  };
+  PassengerTabs: undefined;
+  DriverTabs: undefined;
 };
 
 export type DriverTabParams = {
