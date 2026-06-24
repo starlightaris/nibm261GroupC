@@ -23,7 +23,7 @@ const Root = createNativeStackNavigator<RootStackParams>();
 // ─── Temporary: hardcode role to test layout ──────────────────────────────────
 // Replace this with useAuth() from Firebase once auth is wired up.
 // Change to 'passenger' to test passenger tabs. null for login page
-const MOCK_ROLE: 'driver' | 'passenger' | null = null;
+const MOCK_ROLE: 'driver' | 'passenger' | null = 'passenger';
 const MOCK_LOADING = false;
 
 function AuthNavigator() {

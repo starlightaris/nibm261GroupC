@@ -35,7 +35,7 @@ export type RootStackParams = {
 export type SettingsStackParams = {
   SettingsHome:              undefined;
   EditProfile:               undefined;
-  EditLocations:             undefined;
+  EditLocations:             { mode: 'Pickup' | 'Drop-off' };
   VehicleDetails:            undefined;
   ShiftTimes:                undefined;
   NotificationPreferences:   undefined;
