@@ -37,7 +37,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
+        }
+      ]
     ]
   }
 }
