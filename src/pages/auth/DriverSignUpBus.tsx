@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/RootNavigator';
-import { saveVehicleProfile } from '../../services/authService';
+import { Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { AuthStackParams } from '../../navigation/types';
+import { registerUser, saveVehicleProfile } from '../../services/authService';
 import { isValidVehicleNumber, isValidMobile } from '../../utils/validation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'DriverRegisterStep2'>;
+type NavProp = NativeStackNavigationProp<AuthStackParams, 'DriverSignUpBus'>;
+type RoutePropType = RouteProp<AuthStackParams, 'DriverSignUpBus'>;
 
-export default function DriverRegisterStep2({ route, navigation }: Props) {
-  const { uid, name } = route.params;
+export default function DriverSignUpBusScreen() {
+  const navigation = useNavigation<NavProp>();
+  const route = useRoute<RoutePropType>();
+
+  // These came from Step 1
+  const { name, email, password, phone, licenseNumber } = route.params;
 
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [nickname, setNickname] = useState('');
@@ -22,10 +29,23 @@ export default function DriverRegisterStep2({ route, navigation }: Props) {
     if (!nickname.trim()) return Alert.alert('Oops', 'Please give your vehicle a nickname');
     if (!isValidMobile(contactNumber)) return Alert.alert('Oops', 'Please type a valid contact number');
 
-    const tags = routeTags.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+    const tags = routeTags
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
 
     try {
       setLoading(true);
+
+      // 1. Create Firebase account + save user profile
+      const uid = await registerUser(email, password, {
+        name,
+        mobile: phone,
+        role: 'driver',
+        licenseNumber,
+      });
+
+      // 2. Save vehicle profile linked to same uid
       await saveVehicleProfile(uid, {
         vehicleNumber: vehicleNumber.trim().toUpperCase(),
         nickname: nickname.trim(),
@@ -33,8 +53,13 @@ export default function DriverRegisterStep2({ route, navigation }: Props) {
         contactNumber: contactNumber.trim(),
         whatsappLink: whatsappLink.trim() || undefined,
       });
+
       Alert.alert('All Done! 🎉', `Welcome aboard, ${name}!`);
-      navigation.reset({ index: 0, routes: [{ name: 'DriverHome' }] });
+      // Navigate to driver tabs after registration
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'DriverTabs' }],
+      });
     } catch (err: any) {
       Alert.alert('Something went wrong', err.message ?? 'Please try again');
     } finally {
@@ -48,19 +73,47 @@ export default function DriverRegisterStep2({ route, navigation }: Props) {
       <Text style={styles.step}>Step 2 of 2 — Your Vehicle</Text>
 
       <Text style={styles.label}>Vehicle Number</Text>
-      <TextInput style={styles.input} placeholder="e.g. WP-CAB-1234" value={vehicleNumber} onChangeText={setVehicleNumber} autoCapitalize="characters" />
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. WP-CAB-1234"
+        value={vehicleNumber}
+        onChangeText={setVehicleNumber}
+        autoCapitalize="characters"
+      />
 
       <Text style={styles.label}>Nickname</Text>
-      <TextInput style={styles.input} placeholder="e.g. Morning Shuttle A" value={nickname} onChangeText={setNickname} />
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Morning Shuttle A"
+        value={nickname}
+        onChangeText={setNickname}
+      />
 
       <Text style={styles.label}>Route Tags (separate with commas)</Text>
-      <TextInput style={styles.input} placeholder="e.g. Negombo, Katunayake" value={routeTags} onChangeText={setRouteTags} />
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Negombo, Katunayake"
+        value={routeTags}
+        onChangeText={setRouteTags}
+      />
 
       <Text style={styles.label}>Contact Number</Text>
-      <TextInput style={styles.input} placeholder="e.g. 0771234567" value={contactNumber} onChangeText={setContactNumber} keyboardType="phone-pad" />
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. 0771234567"
+        value={contactNumber}
+        onChangeText={setContactNumber}
+        keyboardType="phone-pad"
+      />
 
       <Text style={styles.label}>WhatsApp Group Link (optional)</Text>
-      <TextInput style={styles.input} placeholder="https://chat.whatsapp.com/..." value={whatsappLink} onChangeText={setWhatsappLink} autoCapitalize="none" />
+      <TextInput
+        style={styles.input}
+        placeholder="https://chat.whatsapp.com/..."
+        value={whatsappLink}
+        onChangeText={setWhatsappLink}
+        autoCapitalize="none"
+      />
 
       <TouchableOpacity style={styles.btn} onPress={handleFinish} disabled={loading}>
         <Text style={styles.btnText}>{loading ? 'Saving...' : 'Finish ✓'}</Text>
