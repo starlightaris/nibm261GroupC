@@ -5,6 +5,7 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
+      "@styles/*": ["src/styles/*"],
       "@navigation/*": ["src/navigation/*"],
       "@pages/*": ["src/pages/*"],
       "@components/*": ["src/components/*"],
