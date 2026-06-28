@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { DriverProfile } from '@types/auth';
+import { DriverProfile } from '../../../types/auth';
 import InitialsAvatar from '@components/driver/activetrip/InitialsAvatar';
 
 interface Props {

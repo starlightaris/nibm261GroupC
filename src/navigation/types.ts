@@ -1,18 +1,33 @@
-import type { RouteStop, Shift } from '@hooks/useDriverRoute';
+// ─── Shared primitives ────────────────────────────────────────────────────────
+// Defined here — not in hooks — so navigation params stay import-free.
+// Hooks re-export these so consumers only need one import.
+
+export type Shift = 'morning' | 'evening';
+
+export interface RouteStop {
+  userId: string;
+  name: string;
+  initials: string;
+  pickupLocation:  { latitude: number; longitude: number };
+  dropoffLocation: { latitude: number; longitude: number };
+  attendanceStatus: 'present' | 'absent' | 'unmarked';
+}
+
+// ─── Stack param lists ────────────────────────────────────────────────────────
 
 export type AuthStackParams = {
-  Login: undefined;
-  PassengerSignUp: undefined;
+  Login:               undefined;
+  PassengerSignUp:     undefined;
   DriverSignUpDetails: undefined;
   DriverSignUpBus: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
+    name:          string;
+    email:         string;
+    password:      string;
+    phone:         string;
     licenseNumber: string;
   };
   PassengerTabs: undefined;
-  DriverTabs: undefined;
+  DriverTabs:    undefined;
 };
 
 export type DriverTabParams = {
@@ -32,8 +47,8 @@ export type RootStackParams = {
   DriverTabs:    undefined;
   PassengerTabs: undefined;
   ActiveTrip: {
-    stops: RouteStop[];
-    shift: Shift;
+    stops:       RouteStop[];
+    shift:       Shift;
     communityId: string;
   };
 };
@@ -46,4 +61,8 @@ export type SettingsStackParams = {
   ShiftTimes:              undefined;
   NotificationPreferences: undefined;
   TripHistory:             undefined;
+};
+
+export type PassengerRootParams = {
+  PassengerTabs: undefined;
 };

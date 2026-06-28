@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
-import { RouteStop } from '@hooks/useDriverRoute';
+import type { RouteStop } from '@navigation/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
