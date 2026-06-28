@@ -3,7 +3,7 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig';
+import { auth, db } from '@config/firebaseConfig';
 
 // Auth screens
 import Login         from '@pages/auth/Login';

@@ -1,11 +1,20 @@
 export type ShiftType = 'morning' | 'evening';
-export type AttendanceStatus = 'present' | 'absent' | 'pending';
+export type AttendanceStatus = 'present' | 'absent' | 'unmarked';
 
-export interface PassengerAttendance {
-  passengerId: string;
+export interface AttendanceRecord {
+  userId: string;
+  communityId: string;
+  date: string; // YYYY-MM-DD
+  shift: ShiftType;
+  status: AttendanceStatus;
+  markedAt: string | null;
+}
+
+export interface PassengerAttendanceView {
+  userId: string;
   date: string; // YYYY-MM-DD
   morningShift: AttendanceStatus;
   eveningShift: AttendanceStatus;
-  morningUpdatedAt?: Date | string | null;
-  eveningUpdatedAt?: Date | string | null;
+  morningMarkedAt: string | null;
+  eveningMarkedAt: string | null;
 }

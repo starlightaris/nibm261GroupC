@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicat
 import { ShiftType, AttendanceStatus } from '../../types/attendance';
 import { fetchAttendance, updateAttendance } from '../../services/attendanceService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../../firebaseConfig';
+import { auth } from '@config/firebaseConfig';
 
 const MORNING_CUTOFF = '7:30 AM';
 const EVENING_CUTOFF = '5:30 PM';
@@ -17,8 +17,8 @@ const EVENING_CUTOFF = '5:30 PM';
 export default function PassengerHome() {
   const [passengerId, setPassengerId] = useState<string | null>(null);
   const today = new Date().toISOString().split('T')[0];
-  const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('pending');
-  const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('pending');
+  const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('unmarked');
+  const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('unmarked');
   const [morningUpdatedAt, setMorningUpdatedAt] = useState<string | null>(null);
   const [eveningUpdatedAt, setEveningUpdatedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -57,8 +57,8 @@ export default function PassengerHome() {
         const data = await fetchAttendance(passengerId, today);
         setMorningStatus(data.morningShift);
         setEveningStatus(data.eveningShift);
-        setMorningUpdatedAt(data.morningUpdatedAt as string | null);
-        setEveningUpdatedAt(data.eveningUpdatedAt as string | null);
+        setMorningUpdatedAt(data.morningMarkedAt);
+        setEveningUpdatedAt(data.eveningMarkedAt);
       } finally {
         setIsLoading(false);
       }

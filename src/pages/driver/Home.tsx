@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
+import { db } from '@config/firebaseConfig';
 import { ShiftType, AttendanceStatus } from '../../types/attendance';
 
 interface AttendanceRecord {
-  passengerId: string;
+  userId: string;
+  communityId: string;
   date: string;
   shift: ShiftType;
   status: AttendanceStatus;
+  markedAt: string | null;
 }
 
 export default function DriverHomeScreen() {
@@ -29,7 +31,7 @@ export default function DriverHomeScreen() {
 
         // Fetch passenger names
         const names: Record<string, string> = {};
-        const uniqueIds = Array.from(new Set(fetchedRecords.map(r => r.passengerId)));
+        const uniqueIds = Array.from(new Set(fetchedRecords.map(r => r.userId)));
         
         await Promise.all(uniqueIds.map(async (id) => {
           // Check users collection
@@ -66,7 +68,7 @@ export default function DriverHomeScreen() {
   const renderShiftSummary = (title: string, shiftRecords: AttendanceRecord[]) => {
     const presentCount = shiftRecords.filter(r => r.status === 'present').length;
     const absentCount = shiftRecords.filter(r => r.status === 'absent').length;
-    const pendingCount = shiftRecords.filter(r => r.status === 'pending').length;
+    const unmarkedCount = shiftRecords.filter(r => r.status === 'unmarked').length;
 
     const presentList = shiftRecords.filter(r => r.status === 'present');
     const absentList = shiftRecords.filter(r => r.status === 'absent');
@@ -83,10 +85,10 @@ export default function DriverHomeScreen() {
             <Text style={styles.statValue}>{absentCount}</Text>
             <Text style={styles.statLabel}>Absent</Text>
           </View>
-          {pendingCount > 0 && (
+          {unmarkedCount > 0 && (
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statValue}>{unmarkedCount}</Text>
+              <Text style={styles.statLabel}>Unmarked</Text>
             </View>
           )}
         </View>
@@ -95,7 +97,7 @@ export default function DriverHomeScreen() {
           <Text style={styles.listTitle}>Present ({presentCount})</Text>
           {presentList.length > 0 ? (
             presentList.map((r, i) => (
-              <Text key={`p_${i}`} style={styles.listItem}>• {passengerNames[r.passengerId] || r.passengerId}</Text>
+              <Text key={`p_${i}`} style={styles.listItem}>• {passengerNames[r.userId] || r.userId}</Text>
             ))
           ) : (
             <Text style={styles.listEmptyText}>No passengers marked present.</Text>
@@ -106,7 +108,7 @@ export default function DriverHomeScreen() {
           <Text style={styles.listTitle}>Absent ({absentCount})</Text>
           {absentList.length > 0 ? (
             absentList.map((r, i) => (
-              <Text key={`a_${i}`} style={styles.listItem}>• {passengerNames[r.passengerId] || r.passengerId}</Text>
+              <Text key={`a_${i}`} style={styles.listItem}>• {passengerNames[r.userId] || r.userId}</Text>
             ))
           ) : (
             <Text style={styles.listEmptyText}>No passengers marked absent.</Text>

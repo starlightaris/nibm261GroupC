@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { auth } from '../../../firebaseConfig';
+import { auth } from '@config/firebaseConfig';
 
 export default function SettingsHomeScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);

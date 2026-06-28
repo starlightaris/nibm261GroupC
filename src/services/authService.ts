@@ -7,7 +7,7 @@ import {
 
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-import { auth, db } from '../../firebaseConfig';
+import { auth, db } from '@config/firebaseConfig';
 
 import {
   AuthUser,
