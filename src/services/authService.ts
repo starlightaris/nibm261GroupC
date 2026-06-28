@@ -4,52 +4,21 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
-import {
-  AuthUser,
-  DriverProfile,
-  PassengerProfile,
-} from '../types/auth';
+type Role = 'driver' | 'passenger';
 
-// Helpers
-
-/** Generates a short, unambiguous invite code (no 0/O, 1/I). */
-function generateInviteCode(length = 6): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({ length }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length))
-  ).join('');
+export async function loginUser(email: string, password: string) {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
 }
 
-// Auth functions
+export async function resetPassword(email: string) {
+  await sendPasswordResetEmail(auth, email);
+}
 
-export const registerPassenger = async (
-  email: string,
-  password: string,
-  name: string,
-  phone: string
-): Promise<PassengerProfile> => {
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-
-  const profile: PassengerProfile = {
-    uid: cred.user.uid,
-    email,
-    name,
-    phone,
-    role: 'passenger',
-    createdAt: new Date().toISOString(),
-  };
-
-  await setDoc(doc(db, 'users', cred.user.uid), profile);
-
-  return profile;
-};
-
-export const registerDriver = async (
+export async function registerUser(
   email: string,
   password: string,
   name: string,
