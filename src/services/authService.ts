@@ -4,7 +4,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@services/firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
 
 type Role = 'driver' | 'passenger';
 
