@@ -2,7 +2,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import DriverHome        from '@pages/driver/Home';
+import DriverHome        from '@pages/driver/DriverHome';
 import DriverRoute       from '@pages/driver/Route';
 import Community         from '@pages/driver/Community';
 import DriverSettings    from '@navigation/DriverSettingsStack';
