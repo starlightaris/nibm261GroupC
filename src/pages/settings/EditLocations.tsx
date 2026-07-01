@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import MapPicker from '../../components/MapPicker'; 
+import MapPicker from '../../components/passenger/MapPicker'; 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 
