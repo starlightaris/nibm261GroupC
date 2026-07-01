@@ -26,20 +26,20 @@ const Auth          = createNativeStackNavigator<AuthStackParams>();
 const DriverRoot    = createNativeStackNavigator<RootStackParams>();
 const PassengerRoot = createNativeStackNavigator<PassengerRootParams>();
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
 function AuthNavigator() {
   return (
-    <Auth.Navigator screenOptions={{ headerShown: false }}>
+    <Auth.Navigator
+      initialRouteName="Login"
+      screenOptions={{ headerShown: false }}
+    >
       <Auth.Screen name="Login"               component={Login} />
+      <Auth.Screen name="RoleSelect"          component={RoleSelect} />
       <Auth.Screen name="PassengerSignUp"     component={PassengerSignUp} />
       <Auth.Screen name="DriverSignUpDetails" component={DriverSignUpDetails} />
       <Auth.Screen name="DriverSignUpBus"     component={DriverSignUpBus} />
     </Auth.Navigator>
   );
 }
-
-// ─── Driver (tabs + ActiveTrip full-screen above tabs) ────────────────────────
 
 function DriverNavigator() {
   return (
@@ -54,8 +54,6 @@ function DriverNavigator() {
   );
 }
 
-// ─── Passenger (tabs only) ────────────────────────────────────────────────────
-
 function PassengerNavigator() {
   return (
     <PassengerRoot.Navigator screenOptions={{ headerShown: false }}>
@@ -64,10 +62,8 @@ function PassengerNavigator() {
   );
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
-
 export default function RootNavigator() {
-  const [role, setRole]       = useState<UserRole | null>(null);
+  const [role,    setRole]    = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

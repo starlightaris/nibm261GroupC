@@ -6,7 +6,7 @@ export const isValidEmail = (email: string): boolean =>
 export const isValidMobile = (mobile: string): boolean =>
   /^[0-9]{9,15}$/.test(mobile.replace(/[\s+-]/g, ''));
 
-// Checks vehicle number 
+// Checks vehicle number
 export const isValidVehicleNumber = (value: string): boolean =>
   /^[A-Za-z0-9\- ]{4,12}$/.test(value.trim());
 

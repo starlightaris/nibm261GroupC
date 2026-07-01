@@ -44,7 +44,6 @@ export default function ProfileCard({ profile }: Props) {
       {profile.phone && (
         <InfoRow label="Phone"      value={profile.phone} />
       )}
-      <InfoRow label="License"      value={profile.licenseNumber} />
       <InfoRow label="Vehicle type" value={profile.vehicleType} />
       <InfoRow label="Plate"        value={profile.vehiclePlate} />
     </View>
