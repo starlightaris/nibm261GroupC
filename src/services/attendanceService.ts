@@ -23,7 +23,7 @@ const toIsoString = (value: any): string | null => {
   return null;
 };
 
-const getCommunityIdForUser = async (userId: string): Promise<string> => {
+export const getCommunityIdForUser = async (userId: string): Promise<string> => {
   const userSnap = await getDoc(doc(db, 'users', userId));
 
   if (userSnap.exists()) {

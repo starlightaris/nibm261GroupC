@@ -5,6 +5,7 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
+      "@styles/*": ["src/styles/*"],
       "@navigation/*": ["src/navigation/*"],
       "@pages/*": ["src/pages/*"],
       "@components/*": ["src/components/*"],
@@ -13,7 +14,8 @@
       "@store/*": ["src/store/*"],
       "@types/*": ["src/types/*"],
       "@constants/*": ["src/constants/*"],
-      "@config/*": ["*"]
+      "@config/*": ["*"],
+      "@utils/*": ["src/utils/*"]
     }
   }
 }

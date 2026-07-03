@@ -11,7 +11,6 @@ export interface AuthUser {
 
 export interface DriverProfile extends AuthUser {
   role: 'driver';
-  licenseNumber: string;
   vehicleType: string;
   vehiclePlate: string;
 }

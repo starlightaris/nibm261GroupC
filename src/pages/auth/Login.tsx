@@ -346,7 +346,7 @@ export default function Login({ navigation }: Props) {
             style={styles.secondaryBtn}
 
             onPress={() =>
-              navigation.navigate('PassengerSignUp')
+              navigation.navigate('RoleSelect')
             }
 
           >

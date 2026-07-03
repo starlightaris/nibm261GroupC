@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { ShiftType, AttendanceStatus } from '../../types/attendance';
-import { fetchAttendance, updateAttendance } from '../../services/attendanceService';
+import { fetchAttendance, updateAttendance, getCommunityIdForUser } from '../../services/attendanceService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@config/firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@config/firebaseConfig';
 
-const MORNING_CUTOFF = '7:30 AM';
-const EVENING_CUTOFF = '5:30 PM';
+const formatShiftTime = (timeStr?: string): string => {
+  if (!timeStr) return 'Not set';
+  const [hours, minutes] = timeStr.split(':');
+  if (!hours || !minutes) return timeStr;
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  return `${displayH}:${minutes} ${ampm}`;
+};
 
 /**
  * Attendance Component
@@ -21,6 +29,8 @@ export default function PassengerHome() {
   const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('unmarked');
   const [morningUpdatedAt, setMorningUpdatedAt] = useState<string | null>(null);
   const [eveningUpdatedAt, setEveningUpdatedAt] = useState<string | null>(null);
+  const [morningCutoff, setMorningCutoff] = useState<string>('Loading...');
+  const [eveningCutoff, setEveningCutoff] = useState<string>('Loading...');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const formatDateTime = (isoString: string | null | undefined): string => {
@@ -59,6 +69,32 @@ export default function PassengerHome() {
         setEveningStatus(data.eveningShift);
         setMorningUpdatedAt(data.morningMarkedAt);
         setEveningUpdatedAt(data.eveningMarkedAt);
+
+        const communityId = await getCommunityIdForUser(passengerId);
+        if (communityId && communityId !== 'default') {
+          const vehicleSnap = await getDoc(doc(db, 'vehicles', communityId));
+          if (vehicleSnap.exists()) {
+            const vData = vehicleSnap.data();
+            const shiftTimes = vData.shiftTimes;
+            if (shiftTimes) {
+              setMorningCutoff(formatShiftTime(shiftTimes.morningCutoff) || 'Not set');
+              setEveningCutoff(formatShiftTime(shiftTimes.eveningCutoff) || 'Not set');
+            } else {
+              setMorningCutoff('Not set');
+              setEveningCutoff('Not set');
+            }
+          } else {
+            setMorningCutoff('Not set');
+            setEveningCutoff('Not set');
+          }
+        } else {
+          setMorningCutoff('Not set');
+          setEveningCutoff('Not set');
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setMorningCutoff('Error loading');
+        setEveningCutoff('Error loading');
       } finally {
         setIsLoading(false);
       }
@@ -105,7 +141,7 @@ export default function PassengerHome() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>Morning Shift</Text>
-                <Text style={styles.cutoffText}>Cutoff: {MORNING_CUTOFF}</Text>
+                <Text style={styles.cutoffText}>Cutoff: {morningCutoff}</Text>
               </View>
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>Status: <Text style={styles.statusValue}>{morningStatus.charAt(0).toUpperCase() + morningStatus.slice(1)}</Text></Text>
@@ -130,7 +166,7 @@ export default function PassengerHome() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Evening Shift</Text>
-            <Text style={styles.cutoffText}>Cutoff: {EVENING_CUTOFF}</Text>
+            <Text style={styles.cutoffText}>Cutoff: {eveningCutoff}</Text>
           </View>
           <View style={styles.statusInfo}>
             <Text style={styles.statusLabel}>Status: <Text style={styles.statusValue}>{eveningStatus.charAt(0).toUpperCase() + eveningStatus.slice(1)}</Text></Text>
