@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
@@ -22,15 +23,22 @@ type Props = NativeStackScreenProps<SettingsStackParams, 'SettingsHome'>;
 export default function SettingsHome({ navigation }: Props) {
   const { user, loading } = useAuth();
 
-  const handleLogout = () => {
-    Alert.alert('Log out?', 'You will need to sign in again to continue.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log out',
-        style: 'destructive',
-        onPress: () => logoutUser(),
-      },
-    ]);
+  const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('You will need to sign in again to continue. Log out?');
+      if (confirmed) {
+        await logoutUser();
+      }
+    } else {
+      Alert.alert('Log out?', 'You will need to sign in again to continue.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log out',
+          style: 'destructive',
+          onPress: () => logoutUser(),
+        },
+      ]);
+    }
   };
 
   if (loading || !user) {
