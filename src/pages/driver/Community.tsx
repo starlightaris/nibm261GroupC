@@ -8,18 +8,17 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  RefreshControl,
 } from 'react-native';
 import { useCommunity } from '@hooks/useCommunity';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import InviteCard from '@components/driver/community/InviteCard';
 import MemberRow from '@components/driver/community/MemberRow';
-import EmptyCommunity from '@components/driver/community/EmptyCommunity';
 
 export default function CommunityScreen() {
-  const { community, loading, error, removeMember, removing } = useCommunity();
+  const { community, hasMembers, loading, error, removeMember, removing } =
+    useCommunity();
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -29,14 +28,14 @@ export default function CommunityScreen() {
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────────────────
-  if (error) {
+  // ── Error ──────────────────────────────────────────────────────────────────
+  if (error || !community) {
     return (
       <SafeAreaView style={styles.centered}>
         <View style={styles.errorCard}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Couldn't load community</Text>
-          <Text style={styles.errorBody}>{error}</Text>
+          <Text style={styles.errorBody}>{error ?? 'Unknown error'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -46,14 +45,9 @@ export default function CommunityScreen() {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <View style={styles.header}>
+      {/* Header */}
+            <View style={styles.header}>
         <Text style={styles.headerTitle}>Community</Text>
-        {community && (
-          <Text style={styles.headerSub}>
-            {community.members.length} member{community.members.length !== 1 ? 's' : ''}
-          </Text>
-        )}
       </View>
 
       <ScrollView
@@ -61,44 +55,39 @@ export default function CommunityScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── No community ────────────────────────────────────────────────── */}
-        {!community ? (
-          <EmptyCommunity />
-        ) : (
-          <>
-            {/* ── Invite card ───────────────────────────────────────────── */}
-            <InviteCard
-              inviteCode={community.inviteCode}
-              vehicleName={community.vehicleName}
-              plateNumber={community.plateNumber}
-              memberCount={community.members.length}
-              capacity={community.capacity}
-            />
+        {/* Invite card — always visible */}
+        <InviteCard
+          inviteCode={community.inviteCode}
+          vehicleName={community.vehicleName}
+          plateNumber={community.plateNumber}
+          memberCount={community.members.length}
+        />
 
-            {/* ── Member list ───────────────────────────────────────────── */}
-            <View style={styles.listCard}>
-              <Text style={styles.sectionLabel}>Members</Text>
+        {/* Member list */}
+        <View style={styles.listCard}>
+          <Text style={styles.sectionLabel}>Members</Text>
 
-              {community.members.length === 0 ? (
-                <View style={styles.noMembers}>
-                  <Text style={styles.noMembersText}>
-                    No passengers yet. Share your invite code to get started.
-                  </Text>
-                </View>
-              ) : (
-                community.members.map((member, i) => (
-                  <MemberRow
-                    key={member.userId}
-                    member={member}
-                    index={i}
-                    isRemoving={removing === member.userId}
-                    onRemove={() => removeMember(member.userId)}
-                  />
-                ))
-              )}
+          {!hasMembers ? (
+            // Clean empty state — no misleading "complete vehicle profile" copy
+            <View style={styles.emptyMembers}>
+              <Text style={styles.emptyIcon}>👥</Text>
+              <Text style={styles.emptyTitle}>No passengers yet</Text>
+              <Text style={styles.emptyBody}>
+                Share your invite code or QR above and passengers will appear here once they join.
+              </Text>
             </View>
-          </>
-        )}
+          ) : (
+            community.members.map((member, i) => (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                index={i}
+                isRemoving={removing === member.userId}
+                onRemove={() => removeMember(member.userId)}
+              />
+            ))
+          )}
+        </View>
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -107,14 +96,13 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: Colors.bg },
+  root:     { flex: 1, backgroundColor: Colors.bg },
   centered: {
     flex: 1, backgroundColor: Colors.bg,
     alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl,
   },
   loadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -127,13 +115,10 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary },
-  headerSub:   { fontSize: 13, color: Colors.textSecondary },
 
-  // Scroll
   scroll:        { flex: 1 },
   scrollContent: { paddingTop: Spacing.lg, paddingBottom: 16 },
 
-  // Member list card
   listCard: {
     backgroundColor: Colors.white,
     borderRadius: Radius.card,
@@ -149,23 +134,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
+    fontSize: 11, fontWeight: '700', color: Colors.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.sm,
   },
-  noMembers: { paddingVertical: Spacing.xl, alignItems: 'center' },
-  noMembersText: { fontSize: 13, color: Colors.muted, textAlign: 'center' },
+
+  // Empty members state
+  emptyMembers: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: Spacing.lg },
+  emptyIcon:    { fontSize: 36, marginBottom: Spacing.md },
+  emptyTitle:   { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6 },
+  emptyBody:    { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 },
 
   // Error
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: Radius.card,
-    padding: Spacing.xxl,
-    alignItems: 'center',
-    margin: Spacing.lg,
+  errorCard:  {
+    backgroundColor: '#FEF2F2', borderRadius: Radius.card,
+    padding: Spacing.xxl, alignItems: 'center', margin: Spacing.lg,
   },
   errorIcon:  { fontSize: 32, marginBottom: Spacing.sm },
   errorTitle: { fontSize: 16, fontWeight: '700', color: Colors.error, marginBottom: 4 },
