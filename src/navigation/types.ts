@@ -1,16 +1,29 @@
+// ─── Shared primitives ────────────────────────────────────────────────────────
+export type Shift = 'morning' | 'evening';
+
+export interface RouteStop {
+  userId: string;
+  name: string;
+  initials: string;
+  pickupLocation:  { latitude: number; longitude: number };
+  dropoffLocation: { latitude: number; longitude: number };
+  attendanceStatus: 'present' | 'absent' | 'unmarked';
+}
+
+// ─── Stack param lists ────────────────────────────────────────────────────────
 export type AuthStackParams = {
-  Login: undefined;
-  RoleSelect: undefined;
-  PassengerSignUp: undefined;
+  Login:               undefined;
+  RoleSelect:          undefined;
+  PassengerSignUp:     undefined;
   DriverSignUpDetails: undefined;
   DriverSignUpBus: {
-    name: string;
-    email: string;
+    name:     string;
+    email:    string;
     password: string;
-    phone: string;
+    phone:    string;
   };
   PassengerTabs: undefined;
-  DriverTabs: undefined;
+  DriverTabs:    undefined;
 };
 
 export type DriverTabParams = {
@@ -27,9 +40,13 @@ export type PassengerTabParams = {
 };
 
 export type RootStackParams = {
-  DriverTabs:    undefined;
+  DriverTabs:  undefined;
   PassengerTabs: undefined;
-  ActiveTrip:    undefined;
+  ActiveTrip: {
+    stops:       RouteStop[];
+    shift:       Shift;
+    communityId: string;
+  };
 };
 
 export type SettingsStackParams = {
@@ -40,4 +57,8 @@ export type SettingsStackParams = {
   ShiftTimes:              undefined;
   NotificationPreferences: undefined;
   TripHistory:             undefined;
+};
+
+export type PassengerRootParams = {
+  PassengerTabs: undefined;
 };

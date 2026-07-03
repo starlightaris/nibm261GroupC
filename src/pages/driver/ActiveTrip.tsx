@@ -1,240 +1,299 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
   ActivityIndicator,
+  SafeAreaView,
+  Platform,
+  StatusBar,
 } from 'react-native';
-import * as Location from 'expo-location';
-import MapView, { Marker } from 'react-native-maps';
-import { updateDriverLocation, stopDriverLocation } from '@services/locationService';
-import { auth } from '../../../firebaseConfig';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
+import { useActiveTrip } from '@hooks/useActiveTrip';
+import type { RootStackParams } from '@navigation/types';
+import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
+import { Colors, Radius, Spacing } from '@styles/tokens';
+import NextStopCard from '@components/driver/activetrip/NextStopCard';
+import PassengerQueue from '@components/driver/activetrip/PassengerQueue';
+import TripCompleteCard from '@components/driver/activetrip/TripCompleteCard';
 
-export default function ActiveTripScreen() {
-  const [isSharing, setIsSharing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+type ActiveTripNavProp   = NativeStackNavigationProp<RootStackParams, 'ActiveTrip'>;
+type ActiveTripRouteProp = RouteProp<RootStackParams, 'ActiveTrip'>;
 
-  const watchSubscription = useRef<Location.LocationSubscription | null>(null);
+const MAPS_API_KEY: string =
+  Constants.expoConfig?.android?.config?.googleMaps?.apiKey ??
+  Constants.expoConfig?.ios?.config?.googleMapsApiKey ??
+  '';
 
-  // Stop sharing if screen is closed
-  useEffect(() => {
-    return () => {
-      watchSubscription.current?.remove();
-    };
-  }, []);
+function regionFromLatLng(coord: LatLng, delta = 0.015) {
+  return { ...coord, latitudeDelta: delta, longitudeDelta: delta };
+}
 
-  const handleStartSharing = async () => {
-    setLoading(true);
-
-    // 1. Ask permission
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission needed',
-        'Please allow location access to share your trip with passengers.'
-      );
-      setLoading(false);
-      return;
-    }
-
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      Alert.alert('Not logged in', 'Please log in first.');
-      setLoading(false);
-      return;
-    }
-
-    // 2. Get first location immediately so map shows right away
-    const firstLocation = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-
-    setCurrentLocation({
-      latitude: firstLocation.coords.latitude,
-      longitude: firstLocation.coords.longitude,
-    });
-
-    // 3. Watch location — updates every 4 seconds or every 10 meters
-    watchSubscription.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 4000,
-        distanceInterval: 10,
-      },
-      (location) => {
-        const coords = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          heading: location.coords.heading,
-        };
-        setCurrentLocation(coords);
-        updateDriverLocation(uid, coords);
-      }
-    );
-
-    setIsSharing(true);
-    setLoading(false);
-  };
-
-  const handleStopSharing = async () => {
-    watchSubscription.current?.remove();
-    watchSubscription.current = null;
-    setIsSharing(false);
-
-    const uid = auth.currentUser?.uid;
-    if (uid) await stopDriverLocation(uid);
-
-    Alert.alert('Trip Ended', 'You have stopped sharing your location.');
-  };
-
+function LoadingScreen({ message }: { message: string }) {
   return (
-    <View style={styles.container}>
-
-      {/* MAP */}
-      {currentLocation ? (
-        <MapView
-          style={styles.map}
-          region={{
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          <Marker
-            coordinate={currentLocation}
-            title="You (Driver)"
-            description="Your current location"
-            pinColor="#6C63FF"
-          />
-        </MapView>
-      ) : (
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderIcon}>🗺️</Text>
-          <Text style={styles.mapPlaceholderText}>
-            Map will appear once you start the trip
-          </Text>
-        </View>
-      )}
-
-      {/* BOTTOM PANEL */}
-      <View style={styles.panel}>
-
-        {/* STATUS */}
-        <View style={styles.statusRow}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: isSharing ? '#16a34a' : '#64748B' }
-          ]} />
-          <Text style={styles.statusText}>
-            {isSharing
-              ? 'Sharing your location with passengers'
-              : 'Not sharing location'}
-          </Text>
-        </View>
-
-        {/* COORDINATES (useful for testing) */}
-        {currentLocation && (
-          <Text style={styles.coords}>
-            📍 {currentLocation.latitude.toFixed(5)}, {currentLocation.longitude.toFixed(5)}
-          </Text>
-        )}
-
-        {/* BUTTON */}
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color="#6C63FF"
-            style={{ marginTop: 16 }}
-          />
-        ) : !isSharing ? (
-          <TouchableOpacity style={styles.btnStart} onPress={handleStartSharing}>
-            <Text style={styles.btnText}>🚀 Start Trip</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.btnStop} onPress={handleStopSharing}>
-            <Text style={styles.btnText}>⏹ End Trip</Text>
-          </TouchableOpacity>
-        )}
-
-      </View>
-    </View>
+    <SafeAreaView style={styles.centered}>
+      <ActivityIndicator size="large" color={Colors.primary} />
+      <Text style={styles.loadingText}>{message}</Text>
+    </SafeAreaView>
   );
 }
 
+function ErrorScreen({ message, onBack }: { message: string; onBack: () => void }) {
+  return (
+    <SafeAreaView style={styles.centered}>
+      <Text style={styles.errorText}>{message}</Text>
+      <TouchableOpacity onPress={onBack}>
+        <Text style={styles.backLink}>Go back</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}
+
+export default function ActiveTripScreen() {
+  const navigation = useNavigation<ActiveTripNavProp>();
+  const route      = useRoute<ActiveTripRouteProp>();
+  const { stops, shift, communityId } = route.params;
+
+  const mapRef = useRef<MapView>(null);
+
+  const { trip, loading: tripLoading, error: tripError, startTrip, markPickedUp, endTrip } =
+    useActiveTrip();
+
+  const {
+    fullPolyline,
+    nextInstruction,
+    nextEta,
+    driverLocation,
+    loading: dirLoading,
+    refresh: refreshDirections,
+  } = useRouteDirections({
+    remainingStops: trip.remainingStops,
+    apiKey: MAPS_API_KEY,
+    enabled: trip.status === 'active',
+  });
+
+  useEffect(() => {
+    startTrip({ stops, shift, communityId });
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const target = driverLocation ?? trip.nextStop?.pickupLocation ?? null;
+    if (!target) return;
+    mapRef.current.animateToRegion(regionFromLatLng(target), 600);
+  }, [trip.currentStopIndex, driverLocation]);
+
+  const handleMarkPickedUp = async () => {
+    await markPickedUp();
+    refreshDirections();
+  };
+
+  const handleDone = async () => {
+    await endTrip();
+    navigation.goBack();
+  };
+
+  if (tripLoading && trip.status === 'pending') {
+    return <LoadingScreen message="Starting trip…" />;
+  }
+  if (tripError) {
+    return <ErrorScreen message={tripError} onBack={() => navigation.goBack()} />;
+  }
+
+  const isComplete    = trip.status === 'completed';
+  const initialRegion = trip.nextStop
+    ? regionFromLatLng(trip.nextStop.pickupLocation)
+    : { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Text style={styles.backBtnText}>‹  Route</Text>
+      </TouchableOpacity>
+
+      <View style={styles.progressPill}>
+        <Text style={styles.progressText}>
+          {isComplete
+            ? `All ${trip.allStops.length} picked up`
+            : `${trip.currentStopIndex} / ${trip.allStops.length} picked up`}
+        </Text>
+      </View>
+
+      {dirLoading && (
+        <View style={styles.dirLoadingBadge}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.dirLoadingText}>Routing…</Text>
+        </View>
+      )}
+
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={initialRegion}
+        showsUserLocation
+        showsMyLocationButton={false}
+        showsTraffic
+        followsUserLocation={!isComplete}
+      >
+        {fullPolyline.length > 1 && (
+          <Polyline
+            coordinates={fullPolyline}
+            strokeColor={Colors.primary}
+            strokeWidth={4}
+          />
+        )}
+
+        {fullPolyline.length === 0 && trip.remainingStops.length > 1 && (
+          <Polyline
+            coordinates={trip.remainingStops.map((s) => s.pickupLocation)}
+            strokeColor={Colors.primary}
+            strokeWidth={3}
+            lineDashPattern={[6, 4]}
+          />
+        )}
+
+        {trip.remainingStops.map((stop, i) => (
+          <Marker
+            key={`rem-${stop.userId}`}
+            coordinate={stop.pickupLocation}
+            title={stop.name}
+            description={i === 0 ? nextEta ?? 'Next stop' : undefined}
+          >
+            <View style={styles.markerWrap}>
+              <View style={[styles.marker, i === 0 && styles.markerNext]}>
+                <Text style={styles.markerText}>{trip.currentStopIndex + i + 1}</Text>
+              </View>
+              <View style={[styles.markerTail, i === 0 && styles.markerTailNext]} />
+            </View>
+          </Marker>
+        ))}
+
+        {trip.completedStops.map((stop) => (
+          <Marker key={`done-${stop.userId}`} coordinate={stop.pickupLocation}>
+            <View style={styles.markerDone}>
+              <Text style={styles.markerDoneText}>✓</Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+
+      <View style={styles.sheet}>
+        {isComplete ? (
+          <TripCompleteCard total={trip.allStops.length} onDone={handleDone} />
+        ) : trip.nextStop ? (
+          <NextStopCard
+            stop={trip.nextStop}
+            stopNumber={trip.currentStopIndex + 1}
+            total={trip.allStops.length}
+            eta={nextEta}
+            nextInstruction={nextInstruction}
+            onMarkPickedUp={handleMarkPickedUp}
+            loading={tripLoading}
+          />
+        ) : null}
+
+        <PassengerQueue
+          allStops={trip.allStops}
+          currentIndex={trip.currentStopIndex}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const SHEET_HEIGHT = 280;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B1120',
+  root:     { flex: 1, backgroundColor: Colors.bg },
+  centered: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.bg, padding: Spacing.xxl,
   },
-  map: {
-    flex: 1,
+  loadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
+  errorText:   { fontSize: 14, color: Colors.error, textAlign: 'center', marginBottom: 12 },
+  backLink:    { fontSize: 14, color: Colors.primary, fontWeight: '600' },
+  map: { flex: 1, marginBottom: SHEET_HEIGHT },
+  backBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 48 : 16,
+    left: Spacing.lg,
+    zIndex: 10,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#141E30',
+  backBtnText:    { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+  progressPill: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 48 : 16,
+    alignSelf: 'center',
+    zIndex: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
-  mapPlaceholderIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  mapPlaceholderText: {
-    color: '#64748B',
-    fontSize: 16,
-    textAlign: 'center',
-    padding: 24,
-  },
-  panel: {
-    backgroundColor: '#141E30',
-    padding: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#1E2D45',
-  },
-  statusRow: {
+  progressText:   { fontSize: 12, fontWeight: '700', color: Colors.white },
+  dirLoadingBadge: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 48 : 16,
+    right: Spacing.lg,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  dirLoadingText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
+  sheet: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: SHEET_HEIGHT,
+    justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
   },
-  statusText: {
-    color: '#E2E8F0',
-    fontSize: 14,
+  markerWrap:     { alignItems: 'center' },
+  marker: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: Colors.muted,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.white,
   },
-  coords: {
-    color: '#64748B',
-    fontSize: 12,
-    marginBottom: 8,
+  markerNext:     { backgroundColor: Colors.primary, width: 36, height: 36, borderRadius: 18 },
+  markerText:     { color: Colors.white, fontSize: 12, fontWeight: '700' },
+  markerTail: {
+    width: 0, height: 0,
+    borderLeftWidth: 4, borderRightWidth: 4, borderTopWidth: 6,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    borderTopColor: Colors.muted, marginTop: -1,
   },
-  btnStart: {
-    backgroundColor: '#6C63FF',
-    padding: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 12,
+  markerTailNext: { borderTopColor: Colors.primary },
+  markerDone: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: Colors.success,
+    alignItems: 'center', justifyContent: 'center',
   },
-  btnStop: {
-    backgroundColor: '#dc2626',
-    padding: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  btnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  markerDoneText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
 });
