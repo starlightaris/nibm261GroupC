@@ -28,8 +28,20 @@ export function useAuth(): UseAuthResult {
       }
 
       try {
-        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-        setUser(snap.exists() ? (snap.data() as AuthUser) : null);
+        let snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+        let userData = snap.exists() ? snap.data() : null;
+
+        if (!userData) {
+          const passengerSnap = await getDoc(doc(db, 'passengers', firebaseUser.uid));
+          if (passengerSnap.exists()) userData = passengerSnap.data();
+        }
+
+        if (!userData) {
+          const vehicleSnap = await getDoc(doc(db, 'vehicles', firebaseUser.uid));
+          if (vehicleSnap.exists()) userData = vehicleSnap.data();
+        }
+
+        setUser(userData ? (userData as AuthUser) : null);
       } catch (err) {
         console.error('[useAuth]', err);
         setUser(null);
