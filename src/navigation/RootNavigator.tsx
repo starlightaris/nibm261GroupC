@@ -1,50 +1,99 @@
-import React                          from 'react';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth }                    from '../../App';
-import { RootStackParams }            from './types';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
-// Auth screens — your files
-import Login               from '../pages/auth/Login';
-import PassengerSignUp     from '../pages/auth/PassengerSignUp';
-import DriverSignUpDetails from '../pages/auth/DriverSignUpDetails';
-import DriverSignUpBus     from '../pages/auth/DriverSignUpBus';
+import Login               from '@pages/auth/Login';
+import RoleSelect          from '@pages/auth/RoleSelect';
+import PassengerSignUp     from '@pages/auth/PassengerSignUp';
+import DriverSignUpDetails from '@pages/auth/DriverSignUpDetails';
+import DriverSignUpBus     from '@pages/auth/DriverSignUpBus';
 
+import DriverTabs    from '@navigation/DriverTabs';
+import PassengerTabs from '@navigation/PassengerTabs';
+import ActiveTrip    from '@pages/driver/ActiveTrip';
 
-import DriverTabs    from './DriverTabs';
-import PassengerTabs from './PassengerTabs';
+import type {
+  AuthStackParams,
+  RootStackParams,
+  PassengerRootParams,
+} from '@navigation/types';
+import type { UserRole } from '../types/auth';
 
-const Stack = createNativeStackNavigator<RootStackParams>();
-const DRIVER_ROLE = 'driver' as const;
-const PASSENGER_ROLE = 'passenger' as const;
+const Auth          = createNativeStackNavigator<AuthStackParams>();
+const DriverRoot    = createNativeStackNavigator<RootStackParams>();
+const PassengerRoot = createNativeStackNavigator<PassengerRootParams>();
+
+function AuthNavigator() {
+  return (
+    <Auth.Navigator
+      initialRouteName="Login"
+      screenOptions={{ headerShown: false }}
+    >
+      <Auth.Screen name="Login"               component={Login} />
+      <Auth.Screen name="RoleSelect"          component={RoleSelect} />
+      <Auth.Screen name="PassengerSignUp"     component={PassengerSignUp} />
+      <Auth.Screen name="DriverSignUpDetails" component={DriverSignUpDetails} />
+      <Auth.Screen name="DriverSignUpBus"     component={DriverSignUpBus} />
+    </Auth.Navigator>
+  );
+}
+
+function DriverNavigator() {
+  return (
+    <DriverRoot.Navigator screenOptions={{ headerShown: false }}>
+      <DriverRoot.Screen name="DriverTabs" component={DriverTabs} />
+      <DriverRoot.Screen
+        name="ActiveTrip"
+        component={ActiveTrip}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+    </DriverRoot.Navigator>
+  );
+}
+
+function PassengerNavigator() {
+  return (
+    <PassengerRoot.Navigator screenOptions={{ headerShown: false }}>
+      <PassengerRoot.Screen name="PassengerTabs" component={PassengerTabs} />
+    </PassengerRoot.Navigator>
+  );
+}
 
 export default function RootNavigator() {
-  const { user } = useAuth();
-  const role = user?.role;
-  const isDriver = role === DRIVER_ROLE;
-  const isPassenger = role === PASSENGER_ROLE;
+  const [role,    setRole]    = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+        setRole(snap.exists() ? (snap.data().role as UserRole) : null);
+      } catch {
+        setRole(null);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return unsub;
+  }, []);
+
+  if (loading) {
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login"               component={Login} />
-        <Stack.Screen name="PassengerSignUp"     component={PassengerSignUp} />
-        <Stack.Screen name="DriverSignUpDetails" component={DriverSignUpDetails} />
-        <Stack.Screen name="DriverSignUpBus"     component={DriverSignUpBus} />
-      </Stack.Navigator>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' }}>
+        <ActivityIndicator size="large" color="#1D4ED8" />
+      </View>
     );
   }
 
-  if (isDriver) {
-    return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="DriverTabs" component={DriverTabs} />
-      </Stack.Navigator>
-    );
-  }
-
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="PassengerTabs" component={PassengerTabs} />
-    </Stack.Navigator>
-  );
+  if (role === 'driver')    return <DriverNavigator />;
+  if (role === 'passenger') return <PassengerNavigator />;
+  return <AuthNavigator />;
 }

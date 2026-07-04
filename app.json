@@ -13,21 +13,37 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nibm.transportapp",
+      "config": {
+        "googleMapsApiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+      }
     },
     "android": {
+      "package": "com.nibm.transportapp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
+        }
+      ]
     ]
   }
 }

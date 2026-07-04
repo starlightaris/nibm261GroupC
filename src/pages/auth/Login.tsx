@@ -228,9 +228,21 @@ const handleLogin = async () => {
           {/* CREATE ACCOUNT */}
           <TouchableOpacity
             style={styles.secondaryBtn}
-            onPress={() => navigation.navigate('PassengerSignUp')}
+
+            onPress={() =>
+              navigation.navigate('RoleSelect')
+            }
+
           >
-            <Text style={styles.secondaryBtnText}>Create Account →</Text>
+
+
+            <Text style={styles.secondaryBtnText}>
+
+              Create Account →
+
+            </Text>
+
+
           </TouchableOpacity>
         </View>
 

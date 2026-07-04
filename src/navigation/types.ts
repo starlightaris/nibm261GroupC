@@ -1,16 +1,30 @@
+export type Shift = 'morning' | 'evening';
+
+export interface RouteStop {
+  userId: string;
+  name: string;
+  initials: string;
+  pickupLocation:  { latitude: number; longitude: number };
+  dropoffLocation: { latitude: number; longitude: number };
+  attendanceStatus: 'present' | 'absent' | 'unmarked';
+}
+
+// Stack param lists
+
 export type AuthStackParams = {
-Login: undefined;
-  PassengerSignUp: undefined;
+  Login:               undefined;
+  RoleSelect:          undefined;
+  PassengerSignUp:     undefined;
   DriverSignUpDetails: undefined;
   DriverSignUpBus: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    licenseNumber: string;
+    name:          string;
+    email:         string;
+    password:      string;
+    phone:         string;
+
   };
   PassengerTabs: undefined;
-  DriverTabs: undefined;
+  DriverTabs:    undefined;
 };
 
 export type DriverTabParams = {
@@ -33,15 +47,23 @@ export type RootStackParams = {
   DriverSignUpBus: undefined;
   DriverTabs: undefined;
   PassengerTabs: undefined;
-  ActiveTrip: undefined;
+  ActiveTrip: {
+    stops:       RouteStop[];
+    shift:       Shift;
+    communityId: string;
+  };
 };
 
 export type SettingsStackParams = {
-  SettingsHome:              undefined;
-  EditProfile:               undefined;
-  EditLocations:             undefined;
-  VehicleDetails:            undefined;
-  ShiftTimes:                undefined;
-  NotificationPreferences:   undefined;
-  TripHistory:               undefined;
+  SettingsHome:            undefined;
+  EditProfile:             undefined;
+  EditLocations:           { mode: 'Pickup' | 'Drop-off' };
+  VehicleDetails:          undefined;
+  ShiftTimes:              undefined;
+  NotificationPreferences: undefined;
+  TripHistory:             undefined;
+};
+
+export type PassengerRootParams = {
+  PassengerTabs: undefined;
 };
