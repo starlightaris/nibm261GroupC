@@ -1,8 +1,11 @@
 export interface PassengerPreview {
-  id: string;
+  id: string;           
   name: string;
+  initials: string;     
   photoUrl?: string;
-  pickupLat: number;
-  pickupLng: number;
-  status: 'waiting' | 'picked_up' | 'cancelled';
+  pickupLocation: {     
+    latitude: number;
+    longitude: number;
+  };
+  attendanceStatus: 'present' | 'absent' | 'unmarked';
 }

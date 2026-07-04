@@ -1,4 +1,3 @@
-// src/components/passenger/PassengerPreviewDrawer.tsx
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { PassengerPreview } from '../../types/trip';
+import { Colors, Radius, Spacing } from '@styles/tokens';
 
 interface Props {
   visible: boolean;
@@ -36,37 +36,52 @@ export default function PassengerPreviewDrawer({
 
   if (!visible && passengers.length === 0) return null;
 
+  const label =
+    passengers.length === 1
+      ? '1 passenger nearby'
+      : `${passengers.length} passengers nearby`;
+
   return (
     <Animated.View
-      style={[
-        styles.drawer,
-        { transform: [{ translateY }] },
-      ]}
+      style={[styles.drawer, { transform: [{ translateY }] }]}
       pointerEvents={visible ? 'auto' : 'none'}
     >
+      {/* handle */}
       <View style={styles.handle} />
 
+      {/* header */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>
-          Picking up {passengers.length === 1 ? '1 passenger' : `${passengers.length} passengers`}
-        </Text>
-        <TouchableOpacity onPress={onDismiss}>
+        <Text style={styles.title}>{label}</Text>
+        <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
       </View>
 
+      {/* passenger rows */}
       {passengers.map((p) => (
-        <View key={p.id} style={styles.passengerRow}>
+        <View key={p.id} style={styles.row}>
           {p.photoUrl ? (
             <Image source={{ uri: p.photoUrl }} style={styles.avatar} />
           ) : (
+            // uses initials from RouteStop — no more single char fallback
             <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitial}>
-                {p.name?.charAt(0)?.toUpperCase() ?? '?'}
-              </Text>
+              <Text style={styles.avatarInitials}>{p.initials}</Text>
             </View>
           )}
-          <Text style={styles.passengerName}>{p.name}</Text>
+          <View style={styles.rowText}>
+            <Text style={styles.passengerName}>{p.name}</Text>
+            <Text style={styles.statusLabel}>
+              {p.attendanceStatus === 'unmarked' ? 'Tentative' : 'Confirmed'}
+            </Text>
+          </View>
+          {/* attendance dot */}
+          <View
+            style={[
+              styles.dot,
+              p.attendanceStatus === 'present' && styles.dotPresent,
+              p.attendanceStatus === 'unmarked' && styles.dotUnmarked,
+            ]}
+          />
         </View>
       ))}
     </Animated.View>
@@ -82,15 +97,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#161B2C',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
     paddingTop: 10,
     paddingBottom: 28,
     maxHeight: SCREEN_HEIGHT * 0.35,
+    // sits above the existing bottom sheet (SHEET_HEIGHT = 280)
+    // so we push it up by that amount
+    marginBottom: 280,
     shadowColor: '#000',
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: -4 },
     shadowRadius: 10,
-    elevation: 12,
+    elevation: 14,
   },
   handle: {
     width: 36,
@@ -108,15 +126,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   closeText: {
     color: '#8A8FA3',
     fontSize: 16,
-    padding: 4,
   },
-  passengerRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
@@ -128,16 +145,38 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarFallback: {
-    backgroundColor: '#6C63FF',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarInitial: {
+  avatarInitials: {
     color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
+  },
+  rowText: {
+    flex: 1,
   },
   passengerName: {
     color: '#E2E4ED',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  statusLabel: {
+    color: '#8A8FA3',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8A8FA3',
+  },
+  dotPresent: {
+    backgroundColor: '#4CAF50',
+  },
+  dotUnmarked: {
+    backgroundColor: '#FFC107',
   },
 });

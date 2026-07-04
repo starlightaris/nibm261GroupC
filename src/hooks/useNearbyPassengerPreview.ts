@@ -6,8 +6,8 @@ interface LatLng {
   longitude: number;
 }
 
-const NEARING_RADIUS_METERS = 300; // tweak based on testing
-const AUTO_HIDE_MS = 7000; // 5-10s window, 7s is a safe middle
+const NEARING_RADIUS_METERS = 300;
+const AUTO_HIDE_MS = 7000;
 
 function getDistanceMeters(a: LatLng, b: LatLng) {
   const R = 6371000;
@@ -15,7 +15,6 @@ function getDistanceMeters(a: LatLng, b: LatLng) {
   const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
   const lat1 = (a.latitude * Math.PI) / 180;
   const lat2 = (b.latitude * Math.PI) / 180;
-
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
@@ -36,8 +35,9 @@ export function useNearbyPassengerPreview(
 
     const nearby = passengers.filter((p) => {
       const dist = getDistanceMeters(driverLocation, {
-        latitude: p.pickupLat,
-        longitude: p.pickupLng,
+        // now uses pickupLocation.latitude / longitude — matches RouteStop
+        latitude: p.pickupLocation.latitude,
+        longitude: p.pickupLocation.longitude,
       });
       return dist <= NEARING_RADIUS_METERS;
     });
@@ -56,5 +56,17 @@ export function useNearbyPassengerPreview(
     }
   }, [driverLocation, passengers]);
 
-  return { visible, nearbyPassengers, dismiss: () => setVisible(false) };
+  // Reset triggered set when remaining passengers list resets
+  // (e.g. new trip started)
+  useEffect(() => {
+    if (passengers.length === 0) {
+      alreadyTriggeredFor.current.clear();
+    }
+  }, [passengers.length]);
+
+  return {
+    visible,
+    nearbyPassengers,
+    dismiss: () => setVisible(false),
+  };
 }
