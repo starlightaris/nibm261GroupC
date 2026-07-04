@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import MapPicker from '../../components/passenger/MapPicker'; 
+import MapPicker from '../../components/passenger/MapPicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
-
-// Import Auth and your new location service
-import { auth } from '../../../firebaseConfig'; 
-import { updateUserLocation } from '../../services/userService';
+import { useUpdateLocation } from '@hooks/useUpdateLocation';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditLocations'>;
 
 export default function EditLocations({ route, navigation }: Props) {
-  const { mode } = route.params; 
-  const [isSaving, setIsSaving] = useState(false);
+  const { mode } = route.params;
+  const { saveLocation, isSaving } = useUpdateLocation();
   const [currentSelection, setCurrentSelection] = useState<{
     address: string;
     latitude: number;
@@ -20,25 +17,16 @@ export default function EditLocations({ route, navigation }: Props) {
   } | null>(null);
 
   const handleSaveToBackend = async () => {
-    const uid = auth.currentUser?.uid || "CtDHg5G8XmQy53HU76o5qV99Pat1"; // Hardcoded for testing
-    
-    if (!uid) {
-      Alert.alert("Error", "You must be logged in to save locations.");
-      return;
-    }
+    if (!currentSelection) return;
 
-    if (currentSelection) {
-      setIsSaving(true);
-      try {
-        // Fire the update request to Firestore
-        await updateUserLocation(uid, mode, currentSelection);
-        navigation.goBack();
-      } catch (error) {
-        console.error("Firestore Save Error: ", error);
-        Alert.alert("Save Failed", "Could not save your location. Try again.");
-      } finally {
-        setIsSaving(false);
-      }
+    const { success, error } = await saveLocation(mode, currentSelection);
+
+    if (success) {
+      navigation.goBack();
+    } else if (error === 'You must be logged in to save locations.') {
+      Alert.alert('Error', error);
+    } else {
+      Alert.alert('Save Failed', error ?? 'Could not save your location. Try again.');
     }
   };
 
@@ -49,8 +37,8 @@ export default function EditLocations({ route, navigation }: Props) {
       </View>
 
       <View style={styles.mapWrapper}>
-        <MapPicker 
-          mode={mode} 
+        <MapPicker
+          mode={mode}
           onLocationConfirmed={(address, latitude, longitude) => {
             setCurrentSelection({ address, latitude, longitude });
           }}
@@ -58,8 +46,8 @@ export default function EditLocations({ route, navigation }: Props) {
       </View>
 
       <View style={styles.actionPanel}>
-        <TouchableOpacity 
-          style={[styles.confirmButton, (!currentSelection || isSaving) && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.confirmButton, (!currentSelection || isSaving) && styles.disabledButton]}
           onPress={handleSaveToBackend}
           disabled={!currentSelection || isSaving}
         >
