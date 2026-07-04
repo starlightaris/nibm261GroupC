@@ -2,8 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   doc,
   getDoc,
+  getDocs,
   updateDoc,
   onSnapshot,
+  query,
+  collection,
+  where,
   Unsubscribe,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -15,34 +19,28 @@ export interface CommunityMember {
   userId: string;
   name: string;
   initials: string;
-  pickupLocation: {
-    latitude: number;
-    longitude: number;
-  };
-  dropoffLocation: {
-    latitude: number;
-    longitude: number;
-  };
+  pickupLocation:  { latitude: number; longitude: number };
+  dropoffLocation: { latitude: number; longitude: number };
 }
 
 export interface CommunityData {
-  id: string;
+  id: string | null;       // null when community doc doesn't exist yet
   driverId: string;
   vehicleId: string;
   inviteCode: string;
   vehicleName: string;
   plateNumber: string;
-  capacity: number;
+
   members: CommunityMember[];
 }
 
 export interface UseCommunityResult {
-  community: CommunityData | null;
+  community: CommunityData | null;  // null only while loading or on error
+  hasMembers: boolean;
   loading: boolean;
   error: string | null;
-  /** Remove a passenger from the community members array */
   removeMember: (userId: string) => Promise<void>;
-  removing: string | null; // userId currently being removed
+  removing: string | null;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -60,9 +58,9 @@ function getInitials(name: string): string {
 
 export function useCommunity(): UseCommunityResult {
   const [community, setCommunity] = useState<CommunityData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<string | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [removing,  setRemoving]  = useState<string | null>(null);
 
   useEffect(() => {
     let unsubSnapshot: Unsubscribe | null = null;
@@ -75,20 +73,16 @@ export function useCommunity(): UseCommunityResult {
       }
 
       try {
-        // ── Step 1: fetch vehicles/{uid} for invite code + vehicle details ──
+        // ── Step 1: fetch vehicles/{uid} — always required ───────────────────
         const vehicleSnap = await getDoc(doc(db, 'vehicles', firebaseUser.uid));
         if (!vehicleSnap.exists()) {
-          setError('Vehicle profile not found. Complete registration first.');
+          setError('Vehicle profile not found. Please complete registration.');
           setLoading(false);
           return;
         }
-        const vehicleData = vehicleSnap.data();
+        const v = vehicleSnap.data();
 
         // ── Step 2: find community where driverId == uid ─────────────────────
-        // We avoid a collection query by deriving communityId from the driver's
-        // known vehicle doc. Communities store driverId so we use a query —
-        // but we also listen in real-time so member changes reflect instantly.
-        const { getDocs, query, collection, where } = await import('firebase/firestore');
         const commQuery = query(
           collection(db, 'communities'),
           where('driverId', '==', firebaseUser.uid)
@@ -96,46 +90,56 @@ export function useCommunity(): UseCommunityResult {
         const commSnap = await getDocs(commQuery);
 
         if (commSnap.empty) {
-          // No community yet — return empty state, not an error
-          setCommunity(null);
+          // No community doc yet — show invite code from vehicle doc,
+          // empty members list. Driver can still share invite code.
+          setCommunity({
+            id:          null,
+            driverId:    firebaseUser.uid,
+            vehicleId:   firebaseUser.uid,
+            inviteCode:  v.inviteCode  ?? '',
+            vehicleName: v.vehicleName ?? '',
+            plateNumber: v.plateNumber ?? '',
+      
+            members:     [],
+          });
           setLoading(false);
           return;
         }
 
-        const commDoc = commSnap.docs[0];
-        const commId  = commDoc.id;
+        const commId = commSnap.docs[0].id;
 
-        // ── Step 3: real-time listener on the community doc ──────────────────
+        // ── Step 3: real-time listener on community doc ───────────────────────
         unsubSnapshot = onSnapshot(
           doc(db, 'communities', commId),
           (snap) => {
             if (!snap.exists()) {
-              setCommunity(null);
+              // Doc deleted — keep vehicle data, clear members
+              setCommunity((prev) => prev ? { ...prev, id: null, members: [] } : null);
               return;
             }
             const data = snap.data();
             const members: CommunityMember[] = (data.members ?? []).map((m: any) => ({
-              userId: m.userId,
-              name: m.name,
-              initials: getInitials(m.name),
-              pickupLocation: m.pickupLocation,
+              userId:          m.userId,
+              name:            m.name,
+              initials:        getInitials(m.name),
+              pickupLocation:  m.pickupLocation,
               dropoffLocation: m.dropoffLocation,
             }));
 
             setCommunity({
-              id: commId,
-              driverId: data.driverId,
-              vehicleId: data.vehicleId ?? firebaseUser.uid,
-              inviteCode: vehicleData.inviteCode ?? '',
-              vehicleName: vehicleData.vehicleName ?? '',
-              plateNumber: vehicleData.plateNumber ?? '',
-              capacity: vehicleData.capacity ?? 4,
+              id:          commId,
+              driverId:    data.driverId,
+              vehicleId:   data.vehicleId ?? firebaseUser.uid,
+              inviteCode:  v.inviteCode  ?? '',
+              vehicleName: v.vehicleName ?? '',
+              plateNumber: v.plateNumber ?? '',
+        
               members,
             });
             setLoading(false);
           },
           (err) => {
-            console.error('[useCommunity] snapshot error:', err);
+            console.error('[useCommunity] snapshot:', err);
             setError(err.message ?? 'Failed to load community.');
             setLoading(false);
           }
@@ -156,18 +160,16 @@ export function useCommunity(): UseCommunityResult {
   // ── removeMember ────────────────────────────────────────────────────────────
 
   const removeMember = useCallback(async (userId: string) => {
-    if (!community) return;
+    if (!community?.id) return;
     setRemoving(userId);
-
     try {
       const updatedMembers = community.members
         .filter((m) => m.userId !== userId)
-        .map(({ initials, ...rest }) => rest); // strip client-only initials before writing
+        .map(({ initials, ...rest }) => rest);
 
       await updateDoc(doc(db, 'communities', community.id), {
         members: updatedMembers,
       });
-      // onSnapshot will automatically update local state — no manual setCommunity needed
     } catch (err: any) {
       console.error('[useCommunity] removeMember:', err);
       setError(err?.message ?? 'Failed to remove member.');
@@ -176,5 +178,12 @@ export function useCommunity(): UseCommunityResult {
     }
   }, [community]);
 
-  return { community, loading, error, removeMember, removing };
+  return {
+    community,
+    hasMembers: (community?.members.length ?? 0) > 0,
+    loading,
+    error,
+    removeMember,
+    removing,
+  };
 }

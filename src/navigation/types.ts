@@ -1,7 +1,3 @@
-// ─── Shared primitives ────────────────────────────────────────────────────────
-// Defined here — not in hooks — so navigation params stay import-free.
-// Hooks re-export these so consumers only need one import.
-
 export type Shift = 'morning' | 'evening';
 
 export interface RouteStop {
@@ -13,7 +9,7 @@ export interface RouteStop {
   attendanceStatus: 'present' | 'absent' | 'unmarked';
 }
 
-// ─── Stack param lists ────────────────────────────────────────────────────────
+// Stack param lists
 
 export type AuthStackParams = {
   Login:               undefined;
