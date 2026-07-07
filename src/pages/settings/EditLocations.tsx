@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useLayoutEffect, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
 import MapPicker from '../../components/passenger/MapPicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
@@ -22,6 +22,25 @@ export default function EditLocations({ route, navigation }: Props) {
     longitude: number;
   } | null>(null);
 
+  // This screen can be entered two ways: pushed on top of SettingsHome
+  // (normal edit-later flow), or jumped to directly from a different tab
+  // (the onboarding "Set Locations" prompt on passenger Home). In the second
+  // case there's no guarantee SettingsHome sits underneath this screen in
+  // the stack, so a native back button / goBack() may have nothing to
+  // return to. Rather than rely on stack history, every exit explicitly
+  // targets SettingsHome so the user is never stuck on this screen —
+  // and a Cancel action is always available, even mid-onboarding.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: `Set ${mode} Point`,
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.navigate('SettingsHome')} hitSlop={12}>
+          <Text style={styles.headerAction}>Cancel</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, mode]);
+
   const handleSaveToBackend = async () => {
     if (!currentSelection) return;
 
@@ -40,7 +59,7 @@ export default function EditLocations({ route, navigation }: Props) {
       if (dropoffStillNeeded) {
         navigation.replace('EditLocations', { mode: 'Drop-off' });
       } else {
-        navigation.goBack();
+        navigation.navigate('SettingsHome');
       }
     } else if (error === 'You must be logged in to save locations.') {
       Alert.alert('Error', error);
@@ -51,10 +70,6 @@ export default function EditLocations({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Set {mode} Point</Text>
-      </View>
-
       <View style={styles.mapWrapper}>
         {communityLoading ? (
           <View style={styles.mapLoading}>
@@ -90,8 +105,7 @@ export default function EditLocations({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  header: { paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#EEE' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1D3557' },
+  headerAction: { color: '#1D4ED8', fontSize: 16, fontWeight: '500' },
   mapWrapper: { flex: 1 },
   mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   actionPanel: { padding: 20, backgroundColor: '#FFF' },
