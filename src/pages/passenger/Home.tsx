@@ -16,8 +16,17 @@ import { Colors, Radius, Spacing } from '@styles/tokens';
 import JoinCommunityCard  from '@components/passenger/home/JoinCommunityCard';
 import CommunityInfoCard  from '@components/passenger/home/CommunityInfoCard';
 import AttendanceCard     from '@components/passenger/home/AttendanceCard';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { PassengerTabParams, SettingsStackParams } from '@navigation/types';
 
-export default function PassengerHomeScreen() {
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<PassengerTabParams, 'PassengerHome'>,
+  NativeStackScreenProps<SettingsStackParams>
+>;
+
+export default function PassengerHomeScreen({ navigation }: Props) {
   const {
     community,
     joined,
@@ -79,7 +88,10 @@ export default function PassengerHomeScreen() {
               community={community}
               hasLocations={hasLocations}
               onSetLocations={() => {
-                // TODO: navigate to EditLocations once teammate's PR is merged
+                navigation.navigate('PassengerSettings', {
+                  screen: 'EditLocations',
+                  params: { mode: 'Pickup' },
+                });
               }}
             />
 

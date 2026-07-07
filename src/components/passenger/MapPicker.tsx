@@ -13,11 +13,15 @@ const INITIAL_REGION = {
 interface MapPickerProps {
   mode: 'Pickup' | 'Drop-off';
   onLocationConfirmed: (address: string, latitude: number, longitude: number) => void;
+  /** Previously saved location for this mode, if any — used to open the map centered on it instead of the hardcoded default. */
+  initialLocation?: { address: string; latitude: number; longitude: number } | null;
 }
 
-export default function MapPicker({ mode, onLocationConfirmed }: MapPickerProps) {
+export default function MapPicker({ mode, onLocationConfirmed, initialLocation }: MapPickerProps) {
   const mapRef = useRef<MapView>(null);
-  const [readableAddress, setReadableAddress] = useState<string>('Dragging map to pick...');
+  const [readableAddress, setReadableAddress] = useState<string>(
+    initialLocation?.address ?? 'Dragging map to pick...'
+  );
   const [loadingAddress, setLoadingAddress] = useState<boolean>(false);
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY;
 
@@ -74,7 +78,16 @@ export default function MapPicker({ mode, onLocationConfirmed }: MapPickerProps)
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={INITIAL_REGION}
+        initialRegion={
+          initialLocation
+            ? {
+                latitude: initialLocation.latitude,
+                longitude: initialLocation.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }
+            : INITIAL_REGION
+        }
         onRegionChangeComplete={onRegionChangeComplete}
         showsUserLocation={true}
       />

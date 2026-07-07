@@ -12,11 +12,17 @@ import { auth, db } from '../../firebaseConfig';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface MemberLocation {
+  address:   string;
+  latitude:  number;
+  longitude: number;
+}
+
 export interface PassengerMember {
   userId: string;
   name: string;
-  pickupLocation:  { latitude: number; longitude: number } | null;
-  dropoffLocation: { latitude: number; longitude: number } | null;
+  pickupLocation:  MemberLocation | null;
+  dropoffLocation: MemberLocation | null;
 }
 
 export interface PassengerCommunity {
