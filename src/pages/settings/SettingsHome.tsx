@@ -95,6 +95,7 @@ export default function SettingsHome({ navigation }: Props) {
               <SettingsRow
                 icon="📍"
                 label="Pickup location"
+                subLabel={user.pickupLocation?.address || 'Not set yet'}
                 onPress={() =>
                   navigation.navigate('EditLocations', { mode: 'Pickup' })
                 }
@@ -102,6 +103,7 @@ export default function SettingsHome({ navigation }: Props) {
               <SettingsRow
                 icon="🏁"
                 label="Drop-off location"
+                subLabel={user.dropoffLocation?.address || 'Not set yet'}
                 onPress={() =>
                   navigation.navigate('EditLocations', { mode: 'Drop-off' })
                 }

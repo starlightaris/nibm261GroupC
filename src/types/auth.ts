@@ -1,5 +1,11 @@
 export type UserRole = 'passenger' | 'driver';
 
+export interface Location {
+  address: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface AuthUser {
   uid: string;
   email: string;
@@ -7,6 +13,8 @@ export interface AuthUser {
   name: string;
   phone?: string;
   createdAt: string;
+  pickupLocation?: Location;
+  dropoffLocation?: Location;
 }
 
 export interface DriverProfile extends AuthUser {
