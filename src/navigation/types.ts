@@ -41,7 +41,11 @@ export type PassengerTabParams = {
 };
 
 export type RootStackParams = {
-  DriverTabs:    undefined;
+  Login: undefined;
+  PassengerSignUp: undefined;
+  DriverSignUpDetails: undefined;
+  DriverSignUpBus: undefined;
+  DriverTabs: undefined;
   PassengerTabs: undefined;
   ActiveTrip: {
     stops:       RouteStop[];

@@ -24,6 +24,7 @@ export const Colors = {
 export const Radius = {
   card: 16,
   button: 14,
+  md: 10,
   pill: 20,
   avatar: 22,
 } as const;

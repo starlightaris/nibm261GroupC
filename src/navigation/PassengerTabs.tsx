@@ -2,7 +2,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import PassengerHome     from '@pages/passenger/Home';
+import PassengerHome     from '@pages/passenger/PassengerHome';
 import Track             from '@pages/passenger/Track';
 import PassengerSettings from '@navigation/PassengerSettingsStack';
 
