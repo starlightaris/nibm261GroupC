@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -10,10 +11,9 @@ import RoleSelect          from '@pages/auth/RoleSelect';
 import PassengerSignUp     from '@pages/auth/PassengerSignUp';
 import DriverSignUpDetails from '@pages/auth/DriverSignUpDetails';
 import DriverSignUpBus     from '@pages/auth/DriverSignUpBus';
-
-import DriverTabs    from '@navigation/DriverTabs';
-import PassengerTabs from '@navigation/PassengerTabs';
-import ActiveTrip    from '@pages/driver/ActiveTrip';
+import DriverTabs          from '@navigation/DriverTabs';
+import PassengerTabs       from '@navigation/PassengerTabs';
+import ActiveTrip          from '@pages/driver/ActiveTrip';
 
 import type {
   AuthStackParams,
