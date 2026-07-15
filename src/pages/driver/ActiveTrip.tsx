@@ -17,22 +17,33 @@ import Constants from 'expo-constants';
 import { useActiveTrip } from '@hooks/useActiveTrip';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
+import { RouteStop, Shift } from '@hooks/useDriverRoute';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import NextStopCard from '@components/driver/activetrip/NextStopCard';
 import PassengerQueue from '@components/driver/activetrip/PassengerQueue';
 import TripCompleteCard from '@components/driver/activetrip/TripCompleteCard';
 
-type ActiveTripNavProp   = NativeStackNavigationProp<RootStackParams, 'ActiveTrip'>;
+// ─── Nav params ───────────────────────────────────────────────────────────────
+
+// Navigation types — RootStackParams is the source of truth
+type ActiveTripNavProp = NativeStackNavigationProp<RootStackParams, 'ActiveTrip'>;
 type ActiveTripRouteProp = RouteProp<RootStackParams, 'ActiveTrip'>;
+
+
+// ─── API key from app.json ────────────────────────────────────────────────────
 
 const MAPS_API_KEY: string =
   Constants.expoConfig?.android?.config?.googleMaps?.apiKey ??
   Constants.expoConfig?.ios?.config?.googleMapsApiKey ??
   '';
 
+// ─── Map region helper ────────────────────────────────────────────────────────
+
 function regionFromLatLng(coord: LatLng, delta = 0.015) {
   return { ...coord, latitudeDelta: delta, longitudeDelta: delta };
 }
+
+// ─── Loading screen ───────────────────────────────────────────────────────────
 
 function LoadingScreen({ message }: { message: string }) {
   return (
@@ -42,6 +53,8 @@ function LoadingScreen({ message }: { message: string }) {
     </SafeAreaView>
   );
 }
+
+// ─── Error screen ─────────────────────────────────────────────────────────────
 
 function ErrorScreen({ message, onBack }: { message: string; onBack: () => void }) {
   return (
@@ -54,16 +67,20 @@ function ErrorScreen({ message, onBack }: { message: string; onBack: () => void 
   );
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function ActiveTripScreen() {
   const navigation = useNavigation<ActiveTripNavProp>();
-  const route      = useRoute<ActiveTripRouteProp>();
+  const route = useRoute<ActiveTripRouteProp>();
   const { stops, shift, communityId } = route.params;
 
   const mapRef = useRef<MapView>(null);
 
+  // ── Trip state ──────────────────────────────────────────────────────────────
   const { trip, loading: tripLoading, error: tripError, startTrip, markPickedUp, endTrip } =
     useActiveTrip();
 
+  // ── Directions ──────────────────────────────────────────────────────────────
   const {
     fullPolyline,
     nextInstruction,
@@ -77,10 +94,12 @@ export default function ActiveTripScreen() {
     enabled: trip.status === 'active',
   });
 
+  // ── Start trip on mount ─────────────────────────────────────────────────────
   useEffect(() => {
     startTrip({ stops, shift, communityId });
   }, []);
 
+  // ── Re-centre map on next stop or driver location change ────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
     const target = driverLocation ?? trip.nextStop?.pickupLocation ?? null;
@@ -88,16 +107,19 @@ export default function ActiveTripScreen() {
     mapRef.current.animateToRegion(regionFromLatLng(target), 600);
   }, [trip.currentStopIndex, driverLocation]);
 
+  // ── Mark picked up + refresh directions ────────────────────────────────────
   const handleMarkPickedUp = async () => {
     await markPickedUp();
     refreshDirections();
   };
 
+  // ── End trip ───────────────────────────────────────────────────────────────
   const handleDone = async () => {
     await endTrip();
     navigation.goBack();
   };
 
+  // ── Guards ─────────────────────────────────────────────────────────────────
   if (tripLoading && trip.status === 'pending') {
     return <LoadingScreen message="Starting trip…" />;
   }
@@ -105,7 +127,7 @@ export default function ActiveTripScreen() {
     return <ErrorScreen message={tripError} onBack={() => navigation.goBack()} />;
   }
 
-  const isComplete    = trip.status === 'completed';
+  const isComplete   = trip.status === 'completed';
   const initialRegion = trip.nextStop
     ? regionFromLatLng(trip.nextStop.pickupLocation)
     : { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.05, longitudeDelta: 0.05 };
@@ -114,10 +136,12 @@ export default function ActiveTripScreen() {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
 
+      {/* ── Floating back button ─────────────────────────────────────────── */}
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
         <Text style={styles.backBtnText}>‹  Route</Text>
       </TouchableOpacity>
 
+      {/* ── Progress pill ────────────────────────────────────────────────── */}
       <View style={styles.progressPill}>
         <Text style={styles.progressText}>
           {isComplete
@@ -126,6 +150,7 @@ export default function ActiveTripScreen() {
         </Text>
       </View>
 
+      {/* ── Directions loading indicator (subtle, top-right) ─────────────── */}
       {dirLoading && (
         <View style={styles.dirLoadingBadge}>
           <ActivityIndicator size="small" color={Colors.primary} />
@@ -133,6 +158,7 @@ export default function ActiveTripScreen() {
         </View>
       )}
 
+      {/* ── Full-screen map ──────────────────────────────────────────────── */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -143,6 +169,7 @@ export default function ActiveTripScreen() {
         showsTraffic
         followsUserLocation={!isComplete}
       >
+        {/* Real Directions API polyline — replaces straight dashed line */}
         {fullPolyline.length > 1 && (
           <Polyline
             coordinates={fullPolyline}
@@ -151,6 +178,7 @@ export default function ActiveTripScreen() {
           />
         )}
 
+        {/* Fallback straight-line polyline if directions haven't loaded yet */}
         {fullPolyline.length === 0 && trip.remainingStops.length > 1 && (
           <Polyline
             coordinates={trip.remainingStops.map((s) => s.pickupLocation)}
@@ -160,6 +188,7 @@ export default function ActiveTripScreen() {
           />
         )}
 
+        {/* Remaining stop markers */}
         {trip.remainingStops.map((stop, i) => (
           <Marker
             key={`rem-${stop.userId}`}
@@ -176,6 +205,7 @@ export default function ActiveTripScreen() {
           </Marker>
         ))}
 
+        {/* Completed stop markers */}
         {trip.completedStops.map((stop) => (
           <Marker key={`done-${stop.userId}`} coordinate={stop.pickupLocation}>
             <View style={styles.markerDone}>
@@ -185,6 +215,7 @@ export default function ActiveTripScreen() {
         ))}
       </MapView>
 
+      {/* ── Bottom sheet ─────────────────────────────────────────────────── */}
       <View style={styles.sheet}>
         {isComplete ? (
           <TripCompleteCard total={trip.allStops.length} onDone={handleDone} />
@@ -209,18 +240,28 @@ export default function ActiveTripScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const SHEET_HEIGHT = 280;
 
 const styles = StyleSheet.create({
-  root:     { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: Colors.bg },
+
   centered: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.bg, padding: Spacing.xxl,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bg,
+    padding: Spacing.xxl,
   },
   loadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
   errorText:   { fontSize: 14, color: Colors.error, textAlign: 'center', marginBottom: 12 },
   backLink:    { fontSize: 14, color: Colors.primary, fontWeight: '600' },
+
+  // Map fills screen minus sheet height
   map: { flex: 1, marginBottom: SHEET_HEIGHT },
+
+  // Floating back button
   backBtn: {
     position: 'absolute',
     top: Platform.OS === 'android' ? 48 : 16,
@@ -236,7 +277,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  backBtnText:    { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+  backBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+
+  // Progress pill — centred top
   progressPill: {
     position: 'absolute',
     top: Platform.OS === 'android' ? 48 : 16,
@@ -247,7 +290,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  progressText:   { fontSize: 12, fontWeight: '700', color: Colors.white },
+  progressText: { fontSize: 12, fontWeight: '700', color: Colors.white },
+
+  // Directions loading — top right
   dirLoadingBadge: {
     position: 'absolute',
     top: Platform.OS === 'android' ? 48 : 16,
@@ -267,19 +312,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   dirLoadingText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
+
+  // Bottom sheet
   sheet: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     height: SHEET_HEIGHT,
     justifyContent: 'flex-end',
     paddingBottom: Platform.OS === 'ios' ? 16 : 8,
   },
-  markerWrap:     { alignItems: 'center' },
+
+  // Markers
+  markerWrap: { alignItems: 'center' },
   marker: {
-    width: 30, height: 30, borderRadius: 15,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: Colors.muted,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
   },
   markerNext:     { backgroundColor: Colors.primary, width: 36, height: 36, borderRadius: 18 },
   markerText:     { color: Colors.white, fontSize: 12, fontWeight: '700' },

@@ -17,21 +17,21 @@ import type { AuthStackParams } from '@navigation/types';
 import { registerDriver } from '@services/authService';
 import { isValidVehicleNumber } from '@utils/validation';
 
-type NavProp = NativeStackNavigationProp<AuthStackParams, 'DriverSignUpBus'>;
-type RouteP  = RouteProp<AuthStackParams, 'DriverSignUpBus'>;
+type NavProp      = NativeStackNavigationProp<AuthStackParams, 'DriverSignUpBus'>;
+type RouteP       = RouteProp<AuthStackParams, 'DriverSignUpBus'>;
 
 export default function DriverSignUpBusScreen() {
   const navigation = useNavigation<NavProp>();
   const route      = useRoute<RouteP>();
   const { name, email, password, phone } = route.params;
 
-  const [vehiclePlate,  setVehiclePlate]  = useState('');
-  const [vehicleName,   setVehicleName]   = useState('');
-  const [vehicleType,   setVehicleType]   = useState('');
-  const [description,   setDescription]   = useState('');
-  const [routeTags,     setRouteTags]     = useState('');
-  const [whatsappLink,  setWhatsappLink]  = useState('');
-  const [loading,       setLoading]       = useState(false);
+  const [vehiclePlate,   setVehiclePlate]   = useState('');
+  const [vehicleName,    setVehicleName]    = useState(''); // business/nickname
+  const [vehicleType,    setVehicleType]    = useState(''); // Van, Bus, etc.
+  const [description,    setDescription]    = useState('');
+  const [routeTags,      setRouteTags]      = useState(''); // comma-separated
+  const [whatsappLink,   setWhatsappLink]   = useState('');
+  const [loading,        setLoading]        = useState(false);
 
   const handleFinish = async () => {
     if (!isValidVehicleNumber(vehiclePlate))
@@ -43,6 +43,11 @@ export default function DriverSignUpBusScreen() {
 
     try {
       setLoading(true);
+
+      // registerDriver writes users/{uid} + vehicles/{uid} in one call.
+      // vehicles/{uid} gets: vehicleName, plateNumber, capacity (default 4),
+      // inviteCode (auto-generated), shiftTimes (defaults 09:00 / 17:00).
+      // routeTags, description, whatsappLink are extra fields we merge in.
       await registerDriver(
         email,
         password,
@@ -57,6 +62,8 @@ export default function DriverSignUpBusScreen() {
       );
 
       Alert.alert('All Done! 🎉', `Welcome aboard, ${name}!`);
+      // Reset to DriverTabs — RootNavigator's onAuthStateChanged will
+      // already have fired and swapped the stack, so this is a fallback.
       navigation.reset({ index: 0, routes: [{ name: 'DriverTabs' }] });
     } catch (err: any) {
       const msg =
@@ -131,10 +138,7 @@ export default function DriverSignUpBusScreen() {
           />
           <Text style={styles.hint}>Separate locations with commas</Text>
 
-          <Text style={styles.label}>
-            WhatsApp Group Link{'  '}
-            <Text style={styles.optional}>(optional)</Text>
-          </Text>
+          <Text style={styles.label}>WhatsApp Group Link  <Text style={styles.optional}>(optional)</Text></Text>
           <TextInput
             style={styles.input}
             placeholder="https://chat.whatsapp.com/..."
@@ -184,6 +188,7 @@ const styles = StyleSheet.create({
   hint:        { color: COLORS.muted, fontSize: 11, marginTop: 4 },
   input:       { backgroundColor: COLORS.input, color: COLORS.text, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border },
   textArea:    { minHeight: 100, paddingTop: 14 },
+  passRow:     { flexDirection: 'row', gap: 8 },
   btn:         { backgroundColor: COLORS.accent, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 24 },
   btnDisabled: { opacity: 0.6 },
   btnText:     { color: '#fff', fontWeight: '800', fontSize: 16 },

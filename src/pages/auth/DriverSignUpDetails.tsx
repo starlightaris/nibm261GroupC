@@ -46,10 +46,10 @@ export default function DriverSignUpDetailsScreen() {
       return Alert.alert('Oops', 'Passwords do not match');
 
     navigation.navigate('DriverSignUpBus', {
-      name:     name.trim(),
-      email:    email.trim(),
+      name:          name.trim(),
+      email:         email.trim(),
       password,
-      phone:    phone.trim(),
+      phone:         phone.trim(),
     });
   };
 
@@ -106,11 +106,8 @@ export default function DriverSignUpDetailsScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPass}
             />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPass(!showPass)}
-            >
-              <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁'}</Text>
+            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(!showPass)}>
+              <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁️'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -124,11 +121,8 @@ export default function DriverSignUpDetailsScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirm}
             />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowConfirm(!showConfirm)}
-            >
-              <Text style={styles.eyeIcon}>{showConfirm ? '🙈' : '👁'}</Text>
+            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirm(!showConfirm)}>
+              <Text style={styles.eyeIcon}>{showConfirm ? '🙈' : '👁️'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -136,10 +130,7 @@ export default function DriverSignUpDetailsScreen() {
             <Text style={styles.btnText}>Next →</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.backBtnText}>← Back</Text>
           </TouchableOpacity>
 

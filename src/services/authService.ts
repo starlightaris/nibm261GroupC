@@ -55,6 +55,7 @@ export const registerDriver = async (
   password: string,
   name: string,
   phone: string,
+  licenseNumber: string,    // optional at sign-up — pass '' if not collected yet
   vehicleType: string,
   vehiclePlate: string,
   vehicleName: string,
@@ -95,7 +96,9 @@ export const registerDriver = async (
     },
   });
 
-  // 3. Write communities/{uid}
+  // 3. Write communities/{uid} — empty community ready for passengers to join.
+  //    memberIds (flat array) enables array-contains queries in usePassengerCommunity.
+  //    members   (object array) holds full member data including pickup/dropoff.
   await setDoc(doc(db, 'communities', cred.user.uid), {
     driverId:  cred.user.uid,
     vehicleId: cred.user.uid,

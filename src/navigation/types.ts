@@ -11,16 +11,19 @@ export interface RouteStop {
   attendanceStatus: 'present' | 'absent' | 'unmarked';
 }
 
+// Stack param lists
+
 export type AuthStackParams = {
   Login:               undefined;
   RoleSelect:          undefined;
   PassengerSignUp:     undefined;
   DriverSignUpDetails: undefined;
   DriverSignUpBus: {
-    name:     string;
-    email:    string;
-    password: string;
-    phone:    string;
+    name:          string;
+    email:         string;
+    password:      string;
+    phone:         string;
+
   };
   PassengerTabs: undefined;
   DriverTabs:    undefined;
