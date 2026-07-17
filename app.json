@@ -43,6 +43,12 @@
         {
           "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TransportApp to use your camera to scan QR codes."
+        }
       ]
     ]
   }

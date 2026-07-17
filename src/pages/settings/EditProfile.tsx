@@ -16,7 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@config/firebaseConfig';
+import { db } from 'firebaseConfig';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
