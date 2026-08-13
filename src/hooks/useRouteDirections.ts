@@ -40,19 +40,24 @@ export interface UseRouteDirectionsResult {
   refresh: () => void;
 }
 
-// ─── Google Maps Directions API base URL ─────────────────────────────────────
-// The API key is read from the Expo config at runtime via a Constants import.
-// We avoid hardcoding it here — instead we accept it as a parameter so the
-// hook is testable and the key stays in app.json / .env only.
+// ─── Google Routes API (v2) ───────────────────────────────────────────────────
+// The legacy Directions API (maps/api/directions/json) is blocked on newer
+// Google Cloud projects — Google now routes new projects to this endpoint
+// instead. Same purpose (road-snapped path + ETA), different request shape:
+// POST with a JSON body and an X-Goog-FieldMask header instead of a GET with
+// query params. The API key is read from the Expo config at runtime via a
+// Constants import — we avoid hardcoding it here, instead accepting it as a
+// parameter so the hook is testable and the key stays in app.json / .env only.
 
-const DIRECTIONS_BASE = 'https://maps.googleapis.com/maps/api/directions/json';
+const ROUTES_API_BASE = 'https://routes.googleapis.com/directions/v2:computeRoutes';
+
+// Only request the cheapest ("Essentials" tier) fields — polyline, duration,
+// distance. Adding per-step turn-by-turn (legs.steps) bumps every request to
+// a pricier billing tier, so we skip it; nextInstruction stays null and the
+// UI already hides that row when it's not present.
+const FIELD_MASK = 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Strip HTML tags from Google's instruction strings */
-function stripHtml(raw: string): string {
-  return raw.replace(/<[^>]*>/g, '').trim();
-}
 
 /** Convert seconds to a human-readable label */
 function formatDuration(seconds: number): string {
@@ -113,7 +118,7 @@ function decodePolyline(encoded: string): LatLng[] {
 }
 
 /**
- * Fetch one leg: origin → destination.
+ * Fetch one leg: origin → destination, via the Routes API.
  * Returns null on network/API failure so the caller can handle gracefully.
  */
 async function fetchLeg(
@@ -126,35 +131,50 @@ async function fetchLeg(
   etaSeconds: number;
   distanceMetres: number;
 } | null> {
-  const params = new URLSearchParams({
-    origin: `${origin.latitude},${origin.longitude}`,
-    destination: `${destination.latitude},${destination.longitude}`,
-    mode: 'driving',
-    key: apiKey,
-  });
+  try {
+    const res = await fetch(ROUTES_API_BASE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': FIELD_MASK,
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: origin.latitude, longitude: origin.longitude } } },
+        destination: { location: { latLng: { latitude: destination.latitude, longitude: destination.longitude } } },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_UNAWARE',
+        polylineQuality: 'OVERVIEW',
+      }),
+    });
 
-  const res = await fetch(`${DIRECTIONS_BASE}?${params.toString()}`);
-  if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('[useRouteDirections] Routes API HTTP error', res.status, text);
+      return null;
+    }
 
-  const json = await res.json();
-  if (json.status !== 'OK' || !json.routes?.length) return null;
+    const json = await res.json();
+    const route = json.routes?.[0];
+    if (!route?.polyline?.encodedPolyline) {
+      console.error('[useRouteDirections] unexpected Routes API response', JSON.stringify(json));
+      return null;
+    }
 
-  const leg = json.routes[0].legs[0];
+    // duration comes back as a protobuf Duration string, e.g. "184s"
+    const etaSeconds = parseInt(String(route.duration ?? '0s').replace('s', ''), 10) || 0;
+    const polyline = decodePolyline(route.polyline.encodedPolyline);
 
-  const steps: DirectionStep[] = (leg.steps ?? []).map((s: any) => ({
-    instruction: stripHtml(s.html_instructions ?? ''),
-    distance: s.distance?.text ?? '',
-    duration: s.duration?.text ?? '',
-  }));
-
-  const polyline = decodePolyline(json.routes[0].overview_polyline.points);
-
-  return {
-    polyline,
-    steps,
-    etaSeconds: leg.duration?.value ?? 0,
-    distanceMetres: leg.distance?.value ?? 0,
-  };
+    return {
+      polyline,
+      steps: [], // no turn-by-turn — see FIELD_MASK note above
+      etaSeconds,
+      distanceMetres: route.distanceMeters ?? 0,
+    };
+  } catch (err) {
+    console.error('[useRouteDirections] fetchLeg failed', err);
+    return null;
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

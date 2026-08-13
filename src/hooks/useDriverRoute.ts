@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import * as Location from 'expo-location';
 import { auth, db } from '../../firebaseConfig';
+import { nearestNeighborOrder } from '../utils/routeOptimizer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,11 +143,13 @@ export function useDriverRoute(): UseDriverRouteResult {
       // Take the first community (one driver → one community in this model)
       const commDoc = commSnap.docs[0];
       const commId = commDoc.id;
+      // pickupLocation/dropoffLocation are null until a passenger sets them via
+      // Edit Locations (see useJoinCommunity.ts) — must be treated as optional here.
       const members: Array<{
         userId: string;
         name: string;
-        pickupLocation: { latitude: number; longitude: number };
-        dropoffLocation: { latitude: number; longitude: number };
+        pickupLocation: { latitude: number; longitude: number } | null;
+        dropoffLocation: { latitude: number; longitude: number } | null;
       }> = commDoc.data().members ?? [];
       setCommunityId(commId);
 
@@ -182,13 +186,25 @@ export function useDriverRoute(): UseDriverRouteResult {
         });
       }
 
+      // Members who haven't set a pickup location yet (e.g. just joined) can't be
+      // placed on the map or routed to — drop them here rather than let a null
+      // pickupLocation crash RouteMap/StopRow further downstream. They'll appear
+      // once they complete Edit Locations.
+      const withLocation = members.filter((m) => {
+        if (!m.pickupLocation) {
+          console.warn(`[useDriverRoute] skipping ${m.name} (${m.userId}) — no pickup location set yet`);
+          return false;
+        }
+        return true;
+      });
+
       // merge members with attendance status
-      const merged: RouteStop[] = members.map((m) => ({
+      const merged: RouteStop[] = withLocation.map((m) => ({
         userId: m.userId,
         name: m.name,
         initials: getInitials(m.name),
-        pickupLocation: m.pickupLocation,
-        dropoffLocation: m.dropoffLocation,
+        pickupLocation: m.pickupLocation!,
+        dropoffLocation: m.dropoffLocation ?? m.pickupLocation!,
         attendanceStatus: attendanceDocs[m.userId] ?? 'unmarked',
       }));
 
@@ -201,7 +217,25 @@ export function useDriverRoute(): UseDriverRouteResult {
         (m) => m.attendanceStatus !== 'absent'
       );
 
-      setStops(activeStops);
+      // Reorder by proximity to the driver's current location (nearest-neighbor)
+      // instead of leaving them in community join order.
+      let orderedStops = activeStops;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          orderedStops = nearestNeighborOrder(
+            { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+            activeStops
+          );
+        }
+      } catch (locErr) {
+        console.warn('[useDriverRoute] location unavailable, using default stop order', locErr);
+      }
+
+      setStops(orderedStops);
     } catch (err: any) {
       console.error('[useDriverRoute]', err);
       setError(err?.message ?? 'Failed to load route.');

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { RouteStop } from '@hooks/useDriverRoute';
+import type { LatLng } from '@hooks/useRouteDirections';
 
 // ─── Region helper ────────────────────────────────────────────────────────────
 
@@ -27,9 +28,10 @@ function getRegion(stops: RouteStop[]) {
 interface Props {
   stops: RouteStop[];       // active (non-absent) stops
   absentMembers: RouteStop[];
+  polyline?: LatLng[];      // real driving path (driver → stop1 → stop2 → …) from Directions API
 }
 
-export default function RouteMap({ stops, absentMembers }: Props) {
+export default function RouteMap({ stops, absentMembers, polyline = [] }: Props) {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -53,8 +55,17 @@ export default function RouteMap({ stops, absentMembers }: Props) {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {/* Dashed route polyline */}
-        {stops.length > 1 && (
+        {/* Real driving-route polyline (road-snapped, via Directions API) */}
+        {polyline.length > 1 && (
+          <Polyline
+            coordinates={polyline}
+            strokeColor={Colors.primary}
+            strokeWidth={4}
+          />
+        )}
+
+        {/* Fallback straight dashed line while directions are still loading */}
+        {polyline.length <= 1 && stops.length > 1 && (
           <Polyline
             coordinates={stops.map((s) => s.pickupLocation)}
             strokeColor={Colors.primary}

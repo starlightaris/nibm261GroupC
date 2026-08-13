@@ -2,7 +2,9 @@ import React from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Platform,} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { useDriverRoute } from '@hooks/useDriverRoute';
+import { useRouteDirections } from '@hooks/useRouteDirections';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import type { RootStackParams } from '@navigation/types';
 import ShiftBadge from '@components/driver/route/ShiftBadge';
@@ -12,9 +14,22 @@ import { EmptyRoute, ErrorState } from '@components/driver/route/EmptyRoute';
 
 type RouteNavProp = NativeStackNavigationProp<RootStackParams, 'DriverTabs'>;
 
+const MAPS_API_KEY: string =
+  Constants.expoConfig?.android?.config?.googleMaps?.apiKey ??
+  Constants.expoConfig?.ios?.config?.googleMapsApiKey ??
+  '';
+
 export default function RouteScreen() {
   const navigation = useNavigation<RouteNavProp>();
   const { stops, allMembers, activeShift, communityId, loading, error } = useDriverRoute();
+
+  // Real driving-route polyline through all stops (driver → stop1 → stop2 → …),
+  // same Directions API path used on the active-trip map.
+  const { fullPolyline } = useRouteDirections({
+    remainingStops: stops,
+    apiKey: MAPS_API_KEY,
+    enabled: stops.length > 0,
+  });
 
   if (loading) {
     return (
@@ -71,7 +86,7 @@ export default function RouteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ marginTop: Spacing.lg }}>
-          <RouteMap stops={stops} absentMembers={absentMembers} />
+          <RouteMap stops={stops} absentMembers={absentMembers} polyline={fullPolyline} />
         </View>
 
         {/* Stop list */}
