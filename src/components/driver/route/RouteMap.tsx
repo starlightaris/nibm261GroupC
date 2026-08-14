@@ -2,18 +2,18 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { RouteStop } from '@hooks/useDriverRoute';
+import type { RouteStopEntry } from '@utils/routeStopEntries';
 import type { LatLng } from '@hooks/useRouteDirections';
 
 // ─── Region helper ────────────────────────────────────────────────────────────
 
-function getRegion(stops: RouteStop[]) {
-  if (stops.length === 0) {
+function getRegion(entries: RouteStopEntry[]) {
+  if (entries.length === 0) {
     // Default to Colombo
     return { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.08, longitudeDelta: 0.08 };
   }
-  const lats = stops.map((s) => s.pickupLocation.latitude);
-  const lngs = stops.map((s) => s.pickupLocation.longitude);
+  const lats = entries.map((e) => e.location.latitude);
+  const lngs = entries.map((e) => e.location.longitude);
   const padding = 0.015;
   return {
     latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
@@ -26,24 +26,23 @@ function getRegion(stops: RouteStop[]) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
-  stops: RouteStop[];       // active (non-absent) stops
-  absentMembers: RouteStop[];
-  polyline?: LatLng[];      // real driving path (driver → stop1 → stop2 → …) from Directions API
+  entries: RouteStopEntry[];  // unified, ordered pickup+dropoff stops (present-only)
+  polyline?: LatLng[];        // real driving path (driver → entry1 → entry2 → …) from Directions API
 }
 
-export default function RouteMap({ stops, absentMembers, polyline = [] }: Props) {
+export default function RouteMap({ entries, polyline = [] }: Props) {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
-    if (stops.length === 0 || !mapRef.current) return;
-    const coords = stops.map((s) => s.pickupLocation);
+    if (entries.length === 0 || !mapRef.current) return;
+    const coords = entries.map((e) => e.location);
     setTimeout(() => {
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 48, right: 32, bottom: 48, left: 32 },
         animated: true,
       });
     }, 400);
-  }, [stops]);
+  }, [entries]);
 
   return (
     <View style={styles.card}>
@@ -51,7 +50,7 @@ export default function RouteMap({ stops, absentMembers, polyline = [] }: Props)
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_DEFAULT}
-        initialRegion={getRegion(stops)}
+        initialRegion={getRegion(entries)}
         showsUserLocation
         showsMyLocationButton={false}
       >
@@ -65,53 +64,42 @@ export default function RouteMap({ stops, absentMembers, polyline = [] }: Props)
         )}
 
         {/* Fallback straight dashed line while directions are still loading */}
-        {polyline.length <= 1 && stops.length > 1 && (
+        {polyline.length <= 1 && entries.length > 1 && (
           <Polyline
-            coordinates={stops.map((s) => s.pickupLocation)}
+            coordinates={entries.map((e) => e.location)}
             strokeColor={Colors.primary}
             strokeWidth={3}
             lineDashPattern={[6, 4]}
           />
         )}
 
-        {/* Numbered stop markers */}
-        {stops.map((stop, i) => (
-          <Marker
-            key={`stop-${stop.userId}`}
-            coordinate={stop.pickupLocation}
-            title={stop.name}
-            description={stop.attendanceStatus === 'unmarked' ? 'Pending confirmation' : 'Confirmed'}
-          >
-            <View style={styles.markerWrap}>
-              <View style={[styles.marker, stop.attendanceStatus === 'unmarked' && styles.markerPending]}>
-                <Text style={styles.markerText}>{i + 1}</Text>
+        {/* Numbered stop markers, colour-coded by pickup vs dropoff */}
+        {entries.map((entry, i) => {
+          const isDropoff = entry.kind === 'dropoff';
+          const names = entry.passengers.map((p) => p.name).join(', ');
+          return (
+            <Marker
+              key={entry.id}
+              coordinate={entry.location}
+              title={`${i + 1}. ${names}`}
+              description={isDropoff ? 'Drop-off' : 'Pickup'}
+            >
+              <View style={styles.markerWrap}>
+                <View style={[styles.marker, isDropoff && styles.markerDropoff]}>
+                  <Text style={styles.markerText}>{i + 1}</Text>
+                </View>
+                <View style={[styles.markerTail, isDropoff && styles.markerTailDropoff]} />
               </View>
-              <View style={[styles.markerTail, stop.attendanceStatus === 'unmarked' && styles.markerTailPending]} />
-            </View>
-          </Marker>
-        ))}
-
-        {/* Ghost markers for absent members */}
-        {absentMembers.map((m) => (
-          <Marker
-            key={`absent-${m.userId}`}
-            coordinate={m.pickupLocation}
-            title={m.name}
-            description="Absent today"
-          >
-            <View style={styles.markerAbsent}>
-              <Text style={styles.markerAbsentText}>✕</Text>
-            </View>
-          </Marker>
-        ))}
+            </Marker>
+          );
+        })}
       </MapView>
 
       {/* Legend */}
       <View style={styles.legend}>
         {[
-          { color: Colors.primary, label: 'Active stop' },
-          { color: Colors.warning, label: 'Pending' },
-          { color: Colors.muted, label: 'Absent' },
+          { color: Colors.primary, label: 'Pickup' },
+          { color: Colors.purple, label: 'Drop-off' },
         ].map(({ color, label }) => (
           <View key={label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -164,7 +152,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.white,
   },
-  markerPending: { backgroundColor: Colors.warning },
+  markerDropoff: { backgroundColor: Colors.purple },
   markerText: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   markerTail: {
     width: 0,
@@ -177,14 +165,5 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.primary,
     marginTop: -1,
   },
-  markerTailPending: { borderTopColor: Colors.warning },
-  markerAbsent: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerAbsentText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
+  markerTailDropoff: { borderTopColor: Colors.purple },
 });

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar, Platform,} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import { useDriverRoute } from '@hooks/useDriverRoute';
-import { useRouteDirections } from '@hooks/useRouteDirections';
+import { useWaypointPolyline } from '@hooks/useWaypointPolyline';
+import { buildStopEntries, type RouteStopEntry } from '@utils/routeStopEntries';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import type { RootStackParams } from '@navigation/types';
 import ShiftBadge from '@components/driver/route/ShiftBadge';
@@ -21,14 +22,35 @@ const MAPS_API_KEY: string =
 
 export default function RouteScreen() {
   const navigation = useNavigation<RouteNavProp>();
-  const { stops, allMembers, activeShift, communityId, loading, error } = useDriverRoute();
+  const { stops, activeShift, communityId, loading, error } = useDriverRoute();
+
+  // Unified pickup+dropoff stop list, grouped by proximity and defaulted to
+  // pick-everyone-up-then-drop-everyone-off order. Seeds local state so the
+  // driver can manually reorder via the ▲▼ controls; resets if the
+  // underlying route data reloads.
+  const defaultEntries = useMemo(() => buildStopEntries(stops), [stops]);
+  const [entries, setEntries] = useState<RouteStopEntry[]>(defaultEntries);
+
+  useEffect(() => {
+    setEntries(defaultEntries);
+  }, [defaultEntries]);
+
+  function moveEntry(index: number, direction: -1 | 1) {
+    setEntries((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
 
   // Real driving-route polyline through all stops (driver → stop1 → stop2 → …),
   // same Directions API path used on the active-trip map.
-  const { fullPolyline } = useRouteDirections({
-    remainingStops: stops,
+  const { fullPolyline } = useWaypointPolyline({
+    waypoints: entries.map((e) => e.location),
     apiKey: MAPS_API_KEY,
-    enabled: stops.length > 0,
+    enabled: entries.length > 0,
   });
 
   if (loading) {
@@ -48,14 +70,15 @@ export default function RouteScreen() {
     );
   }
 
-  const confirmedCount = stops.filter((s) => s.attendanceStatus === 'present').length;
-  const pendingCount   = stops.filter((s) => s.attendanceStatus === 'unmarked').length;
-  const absentMembers  = allMembers.filter((m) => m.attendanceStatus === 'absent');
-
   const handleStartTrip = () => {
     if (!communityId || !activeShift) return;
+    // Pickup order follows the driver's (possibly manually reordered) list,
+    // not the raw hook order — so a manual reorder actually changes the trip.
+    const pickupOrder = entries
+      .filter((e) => e.kind === 'pickup')
+      .flatMap((e) => e.passengers);
     navigation.navigate('ActiveTrip', {
-      stops,
+      stops: pickupOrder,
       shift: activeShift,
       communityId,
     });
@@ -72,11 +95,8 @@ export default function RouteScreen() {
           {activeShift && <ShiftBadge shift={activeShift} />}
         </View>
         <View style={styles.stats}>
-          <Stat label="Stops"     value={stops.length} />
-          <Stat label="Confirmed" value={confirmedCount} color={Colors.success} bordered />
-          {pendingCount > 0 && (
-            <Stat label="Pending" value={pendingCount} color="#92400E" />
-          )}
+          <Stat label="Passengers" value={stops.length} />
+          <Stat label="Stops" value={entries.length} bordered />
         </View>
       </View>
 
@@ -86,36 +106,28 @@ export default function RouteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ marginTop: Spacing.lg }}>
-          <RouteMap stops={stops} absentMembers={absentMembers} polyline={fullPolyline} />
+          <RouteMap entries={entries} polyline={fullPolyline} />
         </View>
 
         {/* Stop list */}
         <View style={styles.listCard}>
           <Text style={styles.sectionLabel}>
-            {stops.length > 0 ? 'Stop order' : 'Passengers'}
+            {entries.length > 0 ? 'Stop order' : 'Passengers'}
           </Text>
 
-          {stops.length === 0 && allMembers.length === 0 ? (
+          {entries.length === 0 ? (
             <EmptyRoute />
           ) : (
-            <>
-              {stops.map((stop, i) => (
-                <StopRow key={stop.userId} stop={stop} index={i} total={stops.length} />
-              ))}
-
-              {absentMembers.length > 0 && (
-                <>
-                  <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerLabel}>Not riding today</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
-                  {absentMembers.map((stop, i) => (
-                    <StopRow key={stop.userId} stop={stop} index={i} total={absentMembers.length} />
-                  ))}
-                </>
-              )}
-            </>
+            entries.map((entry, i) => (
+              <StopRow
+                key={entry.id}
+                entry={entry}
+                index={i}
+                total={entries.length}
+                onMoveUp={() => moveEntry(i, -1)}
+                onMoveDown={() => moveEntry(i, 1)}
+              />
+            ))
           )}
         </View>
 
@@ -209,10 +221,6 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '700', color: Colors.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.lg,
   },
-
-  divider:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 16 },
-  dividerLine:  { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerLabel: { fontSize: 11, color: Colors.muted, fontWeight: '500' },
 
   fabBar: {
     paddingHorizontal: Spacing.lg,

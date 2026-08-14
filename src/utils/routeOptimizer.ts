@@ -54,3 +54,37 @@ export function nearestNeighborOrder<T extends { pickupLocation: LatLng }>(
 
   return ordered;
 }
+
+/**
+ * Same greedy nearest-neighbor strategy as `nearestNeighborOrder`, but generic
+ * over any location accessor — used for ordering stop groups that aren't
+ * keyed by `pickupLocation` (e.g. dropoff clusters).
+ */
+export function nearestNeighborOrderBy<T>(
+  origin: LatLng,
+  items: T[],
+  getLocation: (item: T) => LatLng
+): T[] {
+  const remaining = [...items];
+  const ordered: T[] = [];
+  let current = origin;
+
+  while (remaining.length > 0) {
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const d = haversineDistance(current, getLocation(remaining[i]));
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIndex = i;
+      }
+    }
+
+    const [next] = remaining.splice(bestIndex, 1);
+    ordered.push(next);
+    current = getLocation(next);
+  }
+
+  return ordered;
+}

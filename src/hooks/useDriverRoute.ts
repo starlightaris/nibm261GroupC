@@ -25,8 +25,8 @@ export interface RouteStop {
 export type Shift = 'morning' | 'evening';
 
 export interface UseDriverRouteResult {
-  stops: RouteStop[];           // only confirmed-present passengers, ordered
-  allMembers: RouteStop[];      // every community member (for absent indicators)
+  stops: RouteStop[];           // only confirmed-present passengers, ordered by pickup proximity
+  allMembers: RouteStop[];      // every community member (for empty-state messaging)
   activeShift: Shift | null;
   communityId: string | null;
   loading: boolean;
@@ -182,11 +182,10 @@ export function useDriverRoute(): UseDriverRouteResult {
 
       setAllMembers(merged);
 
-      // confirmed-present passengers only, for the active route
-      // "unmarked" passengers are included — driver sees them as tentative stops.
-      // Only explicitly absent passengers are excluded.
+      // Strictly confirmed-present passengers only — absent/unmarked riders
+      // are an attendance concern, handled on the Home screen, not here.
       const activeStops = merged.filter(
-        (m) => m.attendanceStatus !== 'absent'
+        (m) => m.attendanceStatus === 'present'
       );
 
       // Reorder by proximity to the driver's current location (nearest-neighbor)

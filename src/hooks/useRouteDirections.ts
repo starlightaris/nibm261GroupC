@@ -79,7 +79,7 @@ function formatDistance(metres: number): string {
  * Decode a Google Maps encoded polyline string into LatLng array.
  * Algorithm: https://developers.google.com/maps/documentation/utilities/polylinealgorithm
  */
-function decodePolyline(encoded: string): LatLng[] {
+export function decodePolyline(encoded: string): LatLng[] {
   const points: LatLng[] = [];
   let index = 0;
   let lat = 0;
@@ -121,7 +121,7 @@ function decodePolyline(encoded: string): LatLng[] {
  * Fetch one leg: origin → destination, via the Routes API.
  * Returns null on network/API failure so the caller can handle gracefully.
  */
-async function fetchLeg(
+export async function fetchLeg(
   origin: LatLng,
   destination: LatLng,
   apiKey: string
