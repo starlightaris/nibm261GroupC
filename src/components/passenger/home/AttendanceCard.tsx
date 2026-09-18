@@ -1,60 +1,115 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { AttendanceStatus, Shift, TodayAttendance } from '@hooks/useAttendance';
+import {
+  hasCutoffPassed,
+  MarkableAttendanceStatus,
+  Shift,
+  ShiftAttendance,
+  ShiftTimes,
+  TodayAttendance,
+} from '@hooks/useAttendance';
 
-interface ShiftRowProps {
-  label: string;
-  emoji: string;
-  status: AttendanceStatus;
+const formatTime = (time: string): string => {
+  const [hour, minute] = time.split(':').map(Number);
+  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+const formatConfirmation = (attendance: ShiftAttendance): string => {
+  if (attendance.status === 'unmarked' || !attendance.markedAt) {
+    return 'Not marked yet';
+  }
+
+  const time = new Date(attendance.markedAt).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `Marked ${attendance.status} · ${time}`;
+};
+
+interface ShiftCardProps {
+  shift: Shift;
+  attendance: ShiftAttendance;
+  cutoffTime: string;
   isMarking: boolean;
-  onMark: (status: AttendanceStatus) => void;
+  now: Date;
+  onMark: (status: MarkableAttendanceStatus) => void;
 }
 
-function ShiftRow({ label, emoji, status, isMarking, onMark }: ShiftRowProps) {
+function ShiftCard({
+  shift,
+  attendance,
+  cutoffTime,
+  isMarking,
+  now,
+  onMark,
+}: ShiftCardProps) {
+  const label = shift === 'morning' ? 'Morning' : 'Evening';
+  const cutoffPassed = hasCutoffPassed(cutoffTime, now);
+
+  const renderButton = (
+    status: MarkableAttendanceStatus,
+    text: string
+  ) => {
+    const selected = attendance.status === status;
+    const disabled = cutoffPassed || isMarking;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.actionButton,
+          selected &&
+            (status === 'present'
+              ? styles.presentButton
+              : styles.absentButton),
+          disabled && styles.disabledButton,
+        ]}
+        onPress={() => onMark(status)}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} shift ${status}`}
+        accessibilityState={{ disabled, selected }}
+      >
+        <Text style={[styles.actionText, selected && styles.selectedActionText]}>
+          {text}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={styles.shiftRow}>
-      <View style={styles.shiftLabel}>
-        <Text style={styles.shiftEmoji}>{emoji}</Text>
-        <Text style={styles.shiftText}>{label}</Text>
-        {status !== 'unmarked' && (
-          <View style={[styles.statusPill, status === 'present' ? styles.pillPresent : styles.pillAbsent]}>
-            <Text style={[styles.pillText, status === 'present' ? styles.pillPresentText : styles.pillAbsentText]}>
-              {status === 'present' ? 'Present' : 'Absent'}
-            </Text>
-          </View>
-        )}
+    <View style={[styles.card, cutoffPassed && styles.closedCard]}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.shiftLabel}>{label}</Text>
+          <Text style={styles.cutoffText}>
+            {cutoffPassed ? 'Closed' : 'Cutoff'} · {formatTime(cutoffTime)}
+          </Text>
+        </View>
+        {isMarking && <ActivityIndicator size="small" color={Colors.primary} />}
       </View>
 
-      {isMarking ? (
-        <ActivityIndicator size="small" color={Colors.primary} />
-      ) : (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, status === 'present' && styles.actionBtnActive]}
-            onPress={() => onMark('present')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.actionBtnText, status === 'present' && styles.actionBtnActiveText]}>
-              ✓  Present
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionBtn, status === 'absent' && styles.actionBtnAbsent]}
-            onPress={() => onMark('absent')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.actionBtnText, status === 'absent' && styles.actionBtnAbsentText]}>
-              ✕  Absent
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <Text style={styles.confirmation} accessibilityLiveRegion="polite">
+        {formatConfirmation(attendance)}
+      </Text>
+
+      <View style={styles.actions}>
+        {renderButton('present', '✓ Present')}
+        {renderButton('absent', '✕ Absent')}
+      </View>
+
+      {cutoffPassed && (
+        <Text style={styles.closedHelp}>Attendance can no longer be changed.</Text>
       )}
     </View>
   );
@@ -63,36 +118,39 @@ function ShiftRow({ label, emoji, status, isMarking, onMark }: ShiftRowProps) {
 interface Props {
   attendance: TodayAttendance;
   marking: Shift | null;
-  onMark: (shift: Shift, status: AttendanceStatus) => void;
+  shiftTimes: ShiftTimes;
+  onMark: (shift: Shift, status: MarkableAttendanceStatus) => void;
 }
 
-export default function AttendanceCard({ attendance, marking, onMark }: Props) {
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+export default function AttendanceCard({
+  attendance,
+  marking,
+  shiftTimes,
+  onMark,
+}: Props) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.sectionLabel}>Today's Attendance</Text>
-        <Text style={styles.dateText}>{today}</Text>
-      </View>
-
-      <ShiftRow
-        label="Morning"
-        emoji="🌅"
-        status={attendance.morning.status}
+    <View style={styles.cards}>
+      <ShiftCard
+        shift="morning"
+        attendance={attendance.morning}
+        cutoffTime={shiftTimes.morningCutoff}
         isMarking={marking === 'morning'}
+        now={now}
         onMark={(status) => onMark('morning', status)}
       />
-
-      <View style={styles.divider} />
-
-      <ShiftRow
-        label="Evening"
-        emoji="🌆"
-        status={attendance.evening.status}
+      <ShiftCard
+        shift="evening"
+        attendance={attendance.evening}
+        cutoffTime={shiftTimes.eveningCutoff}
         isMarking={marking === 'evening'}
+        now={now}
         onMark={(status) => onMark('evening', status)}
       />
     </View>
@@ -100,44 +158,52 @@ export default function AttendanceCard({ attendance, marking, onMark }: Props) {
 }
 
 const styles = StyleSheet.create({
+  cards: { gap: Spacing.md, marginHorizontal: Spacing.lg },
   card: {
     backgroundColor: Colors.white,
     borderRadius: Radius.card,
     padding: Spacing.lg,
-    marginHorizontal: Spacing.lg,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  header: { marginBottom: Spacing.lg },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  dateText:     { fontSize: 13, color: Colors.textPrimary, fontWeight: '600', marginTop: 2 },
-
-  shiftRow:  { paddingVertical: Spacing.sm },
-  shiftLabel:{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
-  shiftEmoji:{ fontSize: 16 },
-  shiftText: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-
-  statusPill:      { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
-  pillPresent:     { backgroundColor: '#DCFCE7' },
-  pillAbsent:      { backgroundColor: Colors.border },
-  pillText:        { fontSize: 11, fontWeight: '600' },
-  pillPresentText: { color: '#15803D' },
-  pillAbsentText:  { color: Colors.muted },
-
+  closedCard: { backgroundColor: '#F8FAFC' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  shiftLabel: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  cutoffText: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  confirmation: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
   actions: { flexDirection: 'row', gap: Spacing.sm },
-  actionBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: Radius.button,
-    alignItems: 'center', borderWidth: 1.5, borderColor: Colors.border,
+  actionButton: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: Radius.button,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     backgroundColor: Colors.white,
   },
-  actionBtnActive:      { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  actionBtnAbsent:      { backgroundColor: Colors.border, borderColor: Colors.border },
-  actionBtnText:        { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  actionBtnActiveText:  { color: Colors.white },
-  actionBtnAbsentText:  { color: Colors.textPrimary },
-
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
+  presentButton: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  absentButton: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+  disabledButton: { opacity: 0.55 },
+  actionText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
+  selectedActionText: { color: Colors.white },
+  closedHelp: { marginTop: Spacing.sm, fontSize: 12, color: Colors.muted },
 });

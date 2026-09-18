@@ -33,6 +33,10 @@ export interface PassengerCommunity {
   vehicleName: string;
   plateNumber: string;
   inviteCode: string;
+  shiftTimes: {
+    morningCutoff: string;
+    eveningCutoff: string;
+  };
   member: PassengerMember;
 }
 
@@ -125,6 +129,10 @@ export function usePassengerCommunity(): UsePassengerCommunityResult {
               vehicleName: vehicleData.vehicleName ?? '',
               plateNumber: vehicleData.plateNumber ?? '',
               inviteCode:  vehicleData.inviteCode  ?? '',
+              shiftTimes: {
+                morningCutoff: vehicleData.shiftTimes?.morningCutoff ?? '09:00',
+                eveningCutoff: vehicleData.shiftTimes?.eveningCutoff ?? '17:00',
+              },
               member: {
                 userId:          firebaseUser.uid,
                 name:            memberEntry.name,

@@ -38,12 +38,14 @@
     },
     "plugins": [
       "expo-barcode-scanner",
+      "expo-notifications",
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

@@ -24,6 +24,14 @@ function generateInviteCode(length = 6): string {
   ).join('');
 }
 
+function splitName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] ?? '',
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
 // ─── Passenger ───────────────────────────────────────────────────────────────
 
 export const registerPassenger = async (
@@ -33,11 +41,14 @@ export const registerPassenger = async (
   phone: string
 ): Promise<PassengerProfile> => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
+  const { firstName, lastName } = splitName(name);
 
   const profile: PassengerProfile = {
     uid: cred.user.uid,
     email,
     name,
+    firstName,
+    lastName,
     phone,
     role: 'passenger',
     createdAt: new Date().toISOString(),
@@ -64,11 +75,14 @@ export const registerDriver = async (
   whatsappLink?: string,
 ): Promise<DriverProfile> => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
+  const { firstName, lastName } = splitName(name);
 
   const profile: DriverProfile = {
     uid: cred.user.uid,
     email,
     name,
+    firstName,
+    lastName,
     phone,
     role: 'driver',
     vehicleType,

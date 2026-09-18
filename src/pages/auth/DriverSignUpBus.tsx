@@ -53,6 +53,7 @@ export default function DriverSignUpBusScreen() {
         password,
         name,
         phone,
+        '',
         vehicleType.trim(),
         vehiclePlate.trim().toUpperCase(),
         vehicleName.trim(),

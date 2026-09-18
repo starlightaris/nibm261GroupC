@@ -65,6 +65,9 @@ export default function SettingsHome({ navigation }: Props) {
           style={styles.profileCard}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('EditProfile')}
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+          accessibilityHint="Opens your personal details"
         >
           <InitialsAvatar initials={initials} size={48} />
           <View style={styles.profileText}>
