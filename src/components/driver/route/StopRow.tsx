@@ -1,40 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { RouteStop } from '@hooks/useDriverRoute';
+import InitialsAvatar from '@components/driver/activetrip/InitialsAvatar';
+import type { RouteStopEntry } from '@utils/routeStopEntries';
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// ─── Kind badge ───────────────────────────────────────────────────────────────
 
-function Avatar({ initials, absent }: { initials: string; absent: boolean }) {
+function KindPill({ kind }: { kind: RouteStopEntry['kind'] }) {
+  const isDropoff = kind === 'dropoff';
   return (
-    <View style={[styles.avatar, absent && styles.avatarAbsent]}>
-      <Text style={[styles.avatarText, absent && styles.avatarAbsentText]}>
-        {initials}
+    <View style={[styles.pill, isDropoff ? styles.pillDropoff : styles.pillPickup]}>
+      <Text style={[styles.pillText, isDropoff ? styles.pillDropoffText : styles.pillPickupText]}>
+        {isDropoff ? 'Drop-off' : 'Pickup'}
       </Text>
-    </View>
-  );
-}
-
-// ─── Status pill ──────────────────────────────────────────────────────────────
-
-function StatusPill({ status }: { status: RouteStop['attendanceStatus'] }) {
-  if (status === 'present') {
-    return (
-      <View style={[styles.pill, styles.pillPresent]}>
-        <Text style={[styles.pillText, styles.pillPresentText]}>Confirmed</Text>
-      </View>
-    );
-  }
-  if (status === 'absent') {
-    return (
-      <View style={[styles.pill, styles.pillAbsent]}>
-        <Text style={[styles.pillText, styles.pillAbsentText]}>Absent</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={[styles.pill, styles.pillUnmarked]}>
-      <Text style={[styles.pillText, styles.pillUnmarkedText]}>Pending</Text>
     </View>
   );
 }
@@ -42,38 +21,67 @@ function StatusPill({ status }: { status: RouteStop['attendanceStatus'] }) {
 // ─── Stop row ─────────────────────────────────────────────────────────────────
 
 interface Props {
-  stop: RouteStop;
+  entry: RouteStopEntry;
   index: number;
   total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }
 
-export default function StopRow({ stop, index, total }: Props) {
-  const isAbsent = stop.attendanceStatus === 'absent';
+export default function StopRow({ entry, index, total, onMoveUp, onMoveDown }: Props) {
+  const isDropoff = entry.kind === 'dropoff';
+  const isFirst = index === 0;
   const isLast = index === total - 1;
+  const names = entry.passengers.map((p) => p.name).join(', ');
 
   return (
-    <View style={[styles.row, isAbsent && styles.rowAbsent]}>
-      {/* Timeline spine */}
-      <View style={styles.timelineCol}>
-        <View style={[styles.dot, isAbsent && styles.dotAbsent]} />
+    <View style={styles.row}>
+      {/* Numbered badge, colour-coded by kind — matches the map marker */}
+      <View style={styles.badgeCol}>
+        <View style={[styles.badge, isDropoff && styles.badgeDropoff]}>
+          <Text style={styles.badgeText}>{index + 1}</Text>
+        </View>
         {!isLast && <View style={styles.line} />}
       </View>
 
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={styles.nameRow}>
-            <Avatar initials={stop.initials} absent={isAbsent} />
-            <Text style={[styles.name, isAbsent && styles.nameAbsent]} numberOfLines={1}>
-              {stop.name}
-            </Text>
-          </View>
-          <StatusPill status={stop.attendanceStatus} />
+          <KindPill kind={entry.kind} />
         </View>
-        <Text style={styles.coords}>
-          {stop.pickupLocation.latitude.toFixed(5)},{' '}
-          {stop.pickupLocation.longitude.toFixed(5)}
-        </Text>
+
+        <View style={styles.passengerRow}>
+          <View style={styles.avatarStack}>
+            {entry.passengers.map((p, i) => (
+              <View key={p.userId} style={[styles.avatarWrap, i > 0 && { marginLeft: -10 }]}>
+                <InitialsAvatar initials={p.initials} size={28} />
+              </View>
+            ))}
+          </View>
+          <Text style={styles.name} numberOfLines={2}>
+            {names}
+          </Text>
+        </View>
+      </View>
+
+      {/* Manual reorder controls */}
+      <View style={styles.moveCol}>
+        <TouchableOpacity
+          style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}
+          onPress={onMoveUp}
+          disabled={isFirst}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="chevron-up" size={16} color={isFirst ? Colors.muted : Colors.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}
+          onPress={onMoveDown}
+          disabled={isLast}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="chevron-down" size={16} color={isLast ? Colors.muted : Colors.textSecondary} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -86,59 +94,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 4,
   },
-  rowAbsent: { opacity: 0.5 },
 
-  // Timeline
-  timelineCol: { width: 24, alignItems: 'center', marginRight: Spacing.md },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  // Numbered badge column
+  badgeCol: { width: 28, alignItems: 'center', marginRight: Spacing.md },
+  badge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.primary,
-    marginTop: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
   },
-  dotAbsent: { backgroundColor: Colors.muted },
+  badgeDropoff: { backgroundColor: Colors.purple },
+  badgeText: { color: Colors.white, fontSize: 11, fontWeight: '700' },
   line: {
     flex: 1,
     width: 2,
     backgroundColor: Colors.border,
     marginTop: 4,
     marginBottom: 4,
-    minHeight: 24,
+    minHeight: 20,
   },
 
   // Content
   content: { flex: 1, paddingBottom: 20 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
-  name: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, flex: 1 },
-  nameAbsent: { color: Colors.textSecondary, textDecorationLine: 'line-through' },
-  coords: { fontSize: 11, color: Colors.muted, marginTop: 2, marginLeft: 36 },
+  header: { flexDirection: 'row', alignItems: 'center' },
 
-  // Avatar
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.avatar,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarAbsent: { backgroundColor: Colors.absent },
-  avatarText: { fontSize: 10, fontWeight: '700', color: Colors.primary },
-  avatarAbsentText: { color: Colors.absentText },
+  passengerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: Spacing.sm },
+  avatarStack: { flexDirection: 'row', alignItems: 'center' },
+  avatarWrap: { borderWidth: 2, borderColor: Colors.white, borderRadius: Radius.avatar },
+  name: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, flex: 1 },
 
   // Pills
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
   pillText: { fontSize: 11, fontWeight: '600' },
-  pillPresent: { backgroundColor: Colors.successLight },
-  pillPresentText: { color: Colors.successText },
-  pillAbsent: { backgroundColor: Colors.absent },
-  pillAbsentText: { color: Colors.absentText },
-  pillUnmarked: { backgroundColor: Colors.warningLight },
-  pillUnmarkedText: { color: Colors.warningText },
+  pillPickup: { backgroundColor: Colors.primaryLight },
+  pillPickupText: { color: Colors.primary },
+  pillDropoff: { backgroundColor: Colors.purpleLight },
+  pillDropoffText: { color: Colors.purple },
+
+  // Move controls
+  moveCol: { justifyContent: 'center', gap: 4, marginLeft: Spacing.sm },
+  moveBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moveBtnDisabled: { opacity: 0.4 },
 });

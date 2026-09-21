@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
+import ViewShot from 'react-native-view-shot';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 
 interface Props {
@@ -26,11 +29,33 @@ export default function InviteCard({
 }: Props) {
   const [copied,    setCopied]    = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
+  const [sharing,   setSharing]   = useState(false);
+
+  const viewShotRef = useRef<ViewShot>(null);
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (!viewShotRef.current) return;
+    try {
+      setSharing(true);
+      const uri = await (viewShotRef.current as any).capture();
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) return;
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: `Join ${vehicleName}`,
+        UTI: 'public.png',
+      });
+    } catch (err) {
+      console.error('[InviteCard] share error:', err);
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -70,7 +95,6 @@ export default function InviteCard({
           </TouchableOpacity>
         </View>
 
-        {/* QR button */}
         <TouchableOpacity
           style={styles.qrBtn}
           onPress={() => setQrVisible(true)}
@@ -89,30 +113,60 @@ export default function InviteCard({
         visible={qrVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setQrVisible(false)}
+        onRequestClose={() => !sharing && setQrVisible(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setQrVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => !sharing && setQrVisible(false)}>
           <Pressable style={styles.qrModal}>
-            <Text style={styles.qrTitle}>{vehicleName}</Text>
-            <Text style={styles.qrSub}>Scan to join</Text>
-            <View style={styles.qrWrapper}>
-              <QRCode
-                value={inviteCode}
-                size={200}
-                color={Colors.textPrimary}
-                backgroundColor={Colors.white}
-              />
-            </View>
-            <Text style={styles.qrCode}>
-              {inviteCode.split('').join('  ')}
-            </Text>
-            <TouchableOpacity
-              style={styles.qrCloseBtn}
-              onPress={() => setQrVisible(false)}
-              activeOpacity={0.8}
+
+            {/* ViewShot wraps everything that gets captured */}
+            <ViewShot
+              ref={viewShotRef}
+              options={{ format: 'png', quality: 1.0 }}
+              style={styles.captureArea}
             >
-              <Text style={styles.qrCloseBtnText}>Close</Text>
-            </TouchableOpacity>
+              <Text style={styles.qrTitle}>{vehicleName}</Text>
+              <Text style={styles.qrSub}>Scan to join · {plateNumber}</Text>
+
+              <View style={styles.qrWrapper}>
+                <QRCode
+                  value={inviteCode}
+                  size={200}
+                  color={Colors.textPrimary}
+                  backgroundColor={Colors.white}
+                />
+              </View>
+
+              <Text style={styles.qrCode}>
+                {inviteCode.split('').join('  ')}
+              </Text>
+
+              <Text style={styles.qrFooter}>TransportApp</Text>
+            </ViewShot>
+
+            {/* Buttons sit outside the captured area */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.shareBtn}
+                onPress={handleShare}
+                disabled={sharing}
+                activeOpacity={0.85}
+              >
+                {sharing
+                  ? <ActivityIndicator size="small" color={Colors.white} />
+                  : <Text style={styles.shareBtnText}>⬆  Share / Save</Text>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.qrCloseBtn}
+                onPress={() => setQrVisible(false)}
+                disabled={sharing}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.qrCloseBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+
           </Pressable>
         </Pressable>
       </Modal>
@@ -132,40 +186,39 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
-
   vehicleRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   vehicleIcon:  { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   vehicleEmoji: { fontSize: 22 },
   vehicleInfo:  { flex: 1 },
   vehicleName:  { fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
   plateNumber:  { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
-
-  memberBadge: { alignItems: 'center', backgroundColor: Colors.primaryLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.pill },
-  memberCount: { fontSize: 14, fontWeight: '700', color: Colors.primary },
-  memberLabel: { fontSize: 9, color: Colors.primary, fontWeight: '600', textTransform: 'uppercase' },
-
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.lg },
-
-  inviteLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.md },
-  codeRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
-  code:        { fontSize: 26, fontWeight: '800', color: Colors.textPrimary, letterSpacing: 4, fontVariant: ['tabular-nums'] },
-
+  memberBadge:  { alignItems: 'center', backgroundColor: Colors.primaryLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.pill },
+  memberCount:  { fontSize: 14, fontWeight: '700', color: Colors.primary },
+  memberLabel:  { fontSize: 9, color: Colors.primary, fontWeight: '600', textTransform: 'uppercase' },
+  divider:      { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.lg },
+  inviteLabel:  { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.md },
+  codeRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  code:         { fontSize: 26, fontWeight: '800', color: Colors.textPrimary, letterSpacing: 4, fontVariant: ['tabular-nums'] },
   copyBtn:         { backgroundColor: Colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.button },
   copyBtnDone:     { backgroundColor: '#DCFCE7' },
   copyBtnText:     { fontSize: 13, fontWeight: '700', color: Colors.primary },
   copyBtnDoneText: { color: '#15803D' },
-
   qrBtn:     { borderWidth: 1.5, borderColor: Colors.primary, borderRadius: Radius.button, paddingVertical: 10, alignItems: 'center', marginBottom: Spacing.md },
   qrBtnText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  hint:      { fontSize: 12, color: Colors.muted, lineHeight: 18 },
 
-  hint: { fontSize: 12, color: Colors.muted, lineHeight: 18 },
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  qrModal:     { backgroundColor: Colors.white, borderRadius: Radius.card, padding: Spacing.xxl, alignItems: 'center', width: 300 },
+  captureArea: { alignItems: 'center', backgroundColor: Colors.white, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xl, width: '100%' },
+  qrTitle:     { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4, textAlign: 'center' },
+  qrSub:       { fontSize: 12, color: Colors.textSecondary, marginBottom: Spacing.xl, textAlign: 'center' },
+  qrWrapper:   { padding: Spacing.lg, backgroundColor: Colors.white, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.lg },
+  qrCode:      { fontSize: 20, fontWeight: '800', color: Colors.textPrimary, letterSpacing: 4, fontVariant: ['tabular-nums'], marginBottom: Spacing.sm },
+  qrFooter:    { fontSize: 11, color: Colors.muted, fontWeight: '500' },
 
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  qrModal:   { backgroundColor: Colors.white, borderRadius: Radius.card, padding: Spacing.xxl, alignItems: 'center', width: 300 },
-  qrTitle:   { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  qrSub:     { fontSize: 13, color: Colors.textSecondary, marginBottom: Spacing.xl },
-  qrWrapper: { padding: Spacing.lg, backgroundColor: Colors.white, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.lg },
-  qrCode:    { fontSize: 20, fontWeight: '800', color: Colors.textPrimary, letterSpacing: 4, fontVariant: ['tabular-nums'], marginBottom: Spacing.xl },
-  qrCloseBtn:     { backgroundColor: Colors.primary, borderRadius: Radius.button, paddingVertical: 12, paddingHorizontal: 40 },
-  qrCloseBtnText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  modalActions:    { width: '100%', gap: Spacing.sm, marginTop: Spacing.lg },
+  shareBtn:        { backgroundColor: Colors.primary, borderRadius: Radius.button, paddingVertical: 13, alignItems: 'center' },
+  shareBtnText:    { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  qrCloseBtn:      { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.button, paddingVertical: 12, alignItems: 'center' },
+  qrCloseBtnText:  { color: Colors.textSecondary, fontWeight: '600', fontSize: 14 },
 });

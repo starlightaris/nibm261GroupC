@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nibm.transportapp",
       "config": {
-        "googleMapsApiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+        "googleMapsApiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
       }
     },
     "android": {
@@ -29,7 +29,7 @@
       "predictiveBackGestureEnabled": false,
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+          "apiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
         }
       }
     },
@@ -43,7 +43,15 @@
         {
           "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TransportApp to use your camera to scan QR codes."
+        }
+      ],
+      "expo-sharing",
+      "expo-status-bar"
     ]
   }
 }
