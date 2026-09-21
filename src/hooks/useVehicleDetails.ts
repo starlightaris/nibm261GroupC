@@ -24,9 +24,8 @@ export interface UseVehicleDetailsResult {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 // Reads/writes vehicles/{uid} — but only the signup-time identity fields.
-// capacity, inviteCode, and shiftTimes live on the same document but are
-// owned by other screens (Community invite card, Shift Times), so this hook
-// never reads or writes them.
+// capacity and inviteCode live on the same document but are owned by other
+// screens (Community invite card), so this hook never reads or writes them.
 
 export function useVehicleDetails(): UseVehicleDetailsResult {
   const [vehicle, setVehicle] = useState<VehicleDetails | null>(null);

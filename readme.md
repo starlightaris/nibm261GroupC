@@ -29,7 +29,6 @@ src
         ├── EditProfile.tsx
         ├── NotificationPrefs.tsx
         ├── SettingsHome.tsx
-        ├── ShiftTimes.tsx
         ├── TripHistory.tsx
         └── VehicleDetails.tsx
 
@@ -45,8 +44,8 @@ src
 * **`RootNavigator.tsx`** - Top-level navigator. Reads auth state and decides whether to show auth screens, driver tabs, or passenger tabs.
 * **`DriverTabs.tsx`** - Bottom tab navigator for drivers. 4 tabs: Home, Route, Community, Settings.
 * **`PassengerTabs.tsx`** - Bottom tab navigator for passengers. 3 tabs: Home, Track, Settings.
-* **`DriverSettingsStack.tsx`** - Stack navigator nested inside the driver Settings tab. Handles pushing sub-screens like Edit Profile, Vehicle Details, Shift Times.
-* **`PassengerSettingsStack.tsx`** - Same as above but for passengers. Has Edit Locations instead of Vehicle Details and Shift Times.
+* **`DriverSettingsStack.tsx`** - Stack navigator nested inside the driver Settings tab. Handles pushing sub-screens like Edit Profile and Vehicle Details.
+* **`PassengerSettingsStack.tsx`** - Same as above but for passengers. Has Edit Locations instead of Vehicle Details.
 
 ### 🔐 Authentication (`pages/auth/`)
 
@@ -64,16 +63,15 @@ src
 
 ### 🧑‍🤝‍🧑 Passenger Screens (`pages/passenger/`)
 
-* **`Home.tsx`** - Passenger's main screen. Two attendance cards (morning and evening), each with a Present/Absent toggle and cutoff time. Shows confirmation timestamp after marking.
+* **`Home.tsx`** - Passenger's main screen. Two attendance cards (morning and evening), each with a Present/Absent toggle. Shows confirmation timestamp after marking.
 * **`Track.tsx`** - Live tracking screen. Shows driver's location on map, highlights passenger's own stop, displays ETA prominently. Shows empty state when no trip is active.
 
 ### ⚙️ Settings (`pages/settings/`)
 
-* **`SettingsHome.tsx`** - Settings menu screen for both roles. Lists available options as tappable rows. Options shown differ by role (driver sees Vehicle Details and Shift Times; passenger sees Edit Locations).
+* **`SettingsHome.tsx`** - Settings menu screen for both roles. Lists available options as tappable rows. Options shown differ by role (driver sees Vehicle Details; passenger sees Edit Locations).
 * **`EditProfile.tsx`** - Shared by both roles. Edit name and phone number. Saves to Firestore `users/{uid}`.
 * **`EditLocations.tsx`** - Passenger only. Set pickup and dropoff locations via map picker or address search. Saved per community.
 * **`VehicleDetails.tsx`** - Driver only. Edit vehicle name, plate number, capacity. Saves to Firestore `buses/{busId}`.
-* **`ShiftTimes.tsx`** - Driver only. Set morning and evening attendance cutoff times via time picker. Saves to the community document.
 * **`NotificationPrefs.tsx`** - Both roles. Toggle individual notification types (attendance reminder, trip started, driver approaching, new passenger joined).
 * **`TripHistory.tsx`** - Both roles. Shows past trips. Stub screen for now — displays "Coming soon". Full implementation deferred to a future sprint.
 

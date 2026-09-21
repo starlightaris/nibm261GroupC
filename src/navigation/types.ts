@@ -61,7 +61,6 @@ export type SettingsStackParams = {
   EditProfile:             undefined;
   EditLocations:           { mode: 'Pickup' | 'Drop-off' };
   VehicleDetails:          undefined;
-  ShiftTimes:              undefined;
   NotificationPreferences: undefined;
   TripHistory:             undefined;
 };
