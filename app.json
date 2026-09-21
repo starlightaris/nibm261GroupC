@@ -49,7 +49,9 @@
         {
           "cameraPermission": "Allow TransportApp to use your camera to scan QR codes."
         }
-      ]
+      ],
+      "expo-sharing",
+      "expo-status-bar"
     ]
   }
 }
