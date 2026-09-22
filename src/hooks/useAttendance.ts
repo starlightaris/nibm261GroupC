@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
-import {
-  cancelAttendanceReminder,
-  syncAttendanceReminder,
-} from '@services/attendanceNotificationService';
 
 export type AttendanceStatus = 'present' | 'absent' | 'unmarked';
 export type MarkableAttendanceStatus = Exclude<AttendanceStatus, 'unmarked'>;
 export type Shift = 'morning' | 'evening';
-
-export interface ShiftTimes {
-  morningCutoff: string;
-  eveningCutoff: string;
-}
 
 export interface ShiftAttendance {
   status: AttendanceStatus;
@@ -34,19 +25,9 @@ export interface UseAttendanceResult {
   mark: (shift: Shift, status: MarkableAttendanceStatus) => Promise<void>;
 }
 
-export function getTodayString(date = new Date()): string {
+function getTodayString(): string {
+  const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-export function hasCutoffPassed(
-  cutoffTime: string,
-  date = new Date()
-): boolean {
-  const [hour, minute] = cutoffTime.split(':').map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return true;
-  const cutoff = new Date(date);
-  cutoff.setHours(hour, minute, 0, 0);
-  return date.getTime() >= cutoff.getTime();
 }
 
 const createDefaultAttendance = (): TodayAttendance => ({
@@ -62,8 +43,7 @@ const toIsoString = (value: any): string | null => {
 };
 
 export function useAttendance(
-  communityId: string | null,
-  shiftTimes: ShiftTimes | null
+  communityId: string | null
 ): UseAttendanceResult {
   const [attendance, setAttendance] = useState<TodayAttendance>(
     createDefaultAttendance
@@ -126,43 +106,9 @@ export function useAttendance(
     };
   }, [communityId, uid, today]);
 
-  useEffect(() => {
-    if (loading || !communityId || !uid || !shiftTimes) return;
-
-    void (async () => {
-      await syncAttendanceReminder({
-        userId: uid,
-        communityId,
-        date: today,
-        shift: 'morning',
-        cutoffTime: shiftTimes.morningCutoff,
-        status: attendance.morning.status,
-      });
-      await syncAttendanceReminder({
-        userId: uid,
-        communityId,
-        date: today,
-        shift: 'evening',
-        cutoffTime: shiftTimes.eveningCutoff,
-        status: attendance.evening.status,
-      });
-    })().catch((err) =>
-      console.warn('[attendance reminders] scheduling failed:', err)
-    );
-  }, [attendance, communityId, loading, shiftTimes, today, uid]);
-
   const mark = useCallback(
     async (shift: Shift, status: MarkableAttendanceStatus) => {
-      if (!communityId || !uid || !shiftTimes) return;
-
-      const cutoffTime =
-        shift === 'morning'
-          ? shiftTimes.morningCutoff
-          : shiftTimes.eveningCutoff;
-      if (hasCutoffPassed(cutoffTime)) {
-        setError(`The ${shift} attendance cutoff has passed.`);
-        return;
-      }
+      if (!communityId || !uid) return;
 
       setMarking(shift);
       setError(null);
@@ -193,10 +139,6 @@ export function useAttendance(
           ...previous,
           [shift]: { status, markedAt, docId },
         }));
-
-        void cancelAttendanceReminder({ userId: uid, date: today, shift }).catch(
-          (err) => console.warn('[attendance reminders] cancellation failed:', err)
-        );
       } catch (err: any) {
         console.error('[useAttendance] mark:', err);
         setError(err?.message ?? 'Failed to save attendance.');
@@ -204,7 +146,7 @@ export function useAttendance(
         setMarking(null);
       }
     },
-    [attendance, communityId, shiftTimes, today, uid]
+    [attendance, communityId, today, uid]
   );
 
   return { attendance, loading, marking, error, mark };

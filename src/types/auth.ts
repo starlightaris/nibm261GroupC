@@ -14,8 +14,6 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   phone?: string;
-  mobile?: string;
-  mobileNumber?: string;
   createdAt: string;
   pickupLocation?: Location;
   dropoffLocation?: Location;

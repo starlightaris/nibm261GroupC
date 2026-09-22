@@ -85,18 +85,11 @@ export default function SettingsHome({ navigation }: Props) {
         </Text>
         <View style={styles.card}>
           {isDriver ? (
-            <>
-              <SettingsRow
-                icon="🚌"
-                label="Vehicle details"
-                onPress={() => navigation.navigate('VehicleDetails')}
-              />
-              <SettingsRow
-                icon="⏰"
-                label="Shift times"
-                onPress={() => navigation.navigate('ShiftTimes')}
-              />
-            </>
+            <SettingsRow
+              icon="🚌"
+              label="Vehicle details"
+              onPress={() => navigation.navigate('VehicleDetails')}
+            />
           ) : (
             <>
               <SettingsRow

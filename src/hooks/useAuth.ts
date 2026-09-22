@@ -9,7 +9,17 @@ export interface UseAuthResult {
   loading: boolean;
 }
 
-/** Keeps the signed-in user's Firestore profile in sync across settings screens. */
+/**
+ * Shared auth/profile hook. Mirrors the role-resolution logic in
+ * RootNavigator (auth state -> users/{uid} read) so any shared screen
+ * (e.g. SettingsHome) can access the current user without duplicating
+ * that Firestore read inline.
+ *
+ * Uses a real-time onSnapshot listener on users/{uid} (rather than a
+ * one-time getDoc) so writes made elsewhere in the app — e.g. saving a
+ * pickup/drop-off location from EditLocations — are reflected immediately
+ * without requiring a screen remount or focus-based refetch.
+ */
 export function useAuth(): UseAuthResult {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +28,7 @@ export function useAuth(): UseAuthResult {
     let unsubUser: Unsubscribe | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      // Auth state changed — tear down any previous profile listener first.
       unsubUser?.();
       unsubUser = null;
 

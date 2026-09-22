@@ -104,10 +104,6 @@ export const registerDriver = async (
     ...(whatsappLink ? { whatsappLink } : {}),
     capacity:    4,
     inviteCode:  generateInviteCode(),
-    shiftTimes: {
-      morningCutoff: '09:00',
-      eveningCutoff: '17:00',
-    },
   });
 
   // 3. Write communities/{uid} — empty community ready for passengers to join.

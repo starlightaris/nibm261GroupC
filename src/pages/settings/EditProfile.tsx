@@ -16,7 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
+import { db } from 'firebaseConfig';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { isValidMobile } from '@utils/validation';
 
@@ -36,7 +36,7 @@ export default function EditProfile(_props: Props) {
       const nameParts = (user.name ?? '').trim().split(/\s+/).filter(Boolean);
       setFirstName(user.firstName ?? nameParts[0] ?? '');
       setLastName(user.lastName ?? nameParts.slice(1).join(' '));
-      setPhone(user.phone ?? user.mobile ?? user.mobileNumber ?? '');
+      setPhone(user.phone ?? '');
     }
   }, [user]);
 
@@ -63,7 +63,6 @@ export default function EditProfile(_props: Props) {
         lastName: trimmedLastName,
         name: `${trimmedFirstName} ${trimmedLastName}`,
         phone: trimmedPhone,
-        mobile: trimmedPhone,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 

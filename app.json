@@ -6,17 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nibm.transportapp",
       "config": {
-        "googleMapsApiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+        "googleMapsApiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
       }
     },
     "android": {
@@ -25,11 +19,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyD16X5idSkIphD3bd705vL_sBIRlN5kG6o"
+          "apiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
         }
       }
     },
@@ -38,14 +31,20 @@
     },
     "plugins": [
       "expo-barcode-scanner",
-      "expo-notifications",
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
         }
       ],
-      "expo-font"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TransportApp to use your camera to scan QR codes."
+        }
+      ],
+      "expo-sharing",
+      "expo-status-bar"
     ]
   }
 }

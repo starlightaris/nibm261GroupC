@@ -10,12 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { usePassengerCommunity } from '@hooks/usePassengerCommunity';
-import { useJoinCommunity } from '@hooks/useJoinCommunity';
-import { useAttendance } from '@hooks/useAttendance';
+import { useJoinCommunity }      from '@hooks/useJoinCommunity';
+import { useAttendance }         from '@hooks/useAttendance';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import JoinCommunityCard from '@components/passenger/home/JoinCommunityCard';
-import CommunityInfoCard from '@components/passenger/home/CommunityInfoCard';
-import AttendanceCard from '@components/passenger/home/AttendanceCard';
+import JoinCommunityCard  from '@components/passenger/home/JoinCommunityCard';
+import CommunityInfoCard  from '@components/passenger/home/CommunityInfoCard';
+import AttendanceCard     from '@components/passenger/home/AttendanceCard';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -32,15 +32,19 @@ export default function PassengerHomeScreen({ navigation }: Props) {
     joined,
     hasLocations,
     loading: communityLoading,
-    error: communityError,
+    error:   communityError,
   } = usePassengerCommunity();
 
   const { joining, error: joinError, join } = useJoinCommunity();
-  const { attendance, marking, error: attendanceError, mark } = useAttendance(
-    community?.communityId ?? null,
-    community?.shiftTimes ?? null
-  );
 
+  const {
+    attendance,
+    marking,
+    error: attendanceError,
+    mark,
+  } = useAttendance(community?.communityId ?? null);
+
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (communityLoading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -55,6 +59,7 @@ export default function PassengerHomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
 
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.greeting}>{greeting}</Text>
         <Text style={styles.headerTitle}>
@@ -67,10 +72,16 @@ export default function PassengerHomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── State A: not joined ─────────────────────────────────────────── */}
         {!joined && (
-          <JoinCommunityCard joining={joining} error={joinError} onJoin={join} />
+          <JoinCommunityCard
+            joining={joining}
+            error={joinError}
+            onJoin={join}
+          />
         )}
 
+        {/* ── State B + C: joined ─────────────────────────────────────────── */}
         {joined && community && (
           <>
             <CommunityInfoCard
@@ -84,18 +95,18 @@ export default function PassengerHomeScreen({ navigation }: Props) {
               }}
             />
 
+            {/* Only show attendance once locations are set */}
             {hasLocations && (
               <>
                 <SectionGap label="Attendance" />
                 {attendanceError && (
                   <View style={styles.errorBanner}>
-                    <Text style={styles.errorBannerText}>⚠️ {attendanceError}</Text>
+                    <Text style={styles.errorBannerText}>⚠️  {attendanceError}</Text>
                   </View>
                 )}
                 <AttendanceCard
                   attendance={attendance}
                   marking={marking}
-                  shiftTimes={community.shiftTimes}
                   onMark={mark}
                 />
               </>
@@ -105,7 +116,7 @@ export default function PassengerHomeScreen({ navigation }: Props) {
 
         {communityError && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>⚠️ {communityError}</Text>
+            <Text style={styles.errorBannerText}>⚠️  {communityError}</Text>
           </View>
         )}
 
@@ -115,10 +126,12 @@ export default function PassengerHomeScreen({ navigation }: Props) {
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
 
@@ -131,28 +144,16 @@ function SectionGap({ label }: { label: string }) {
 }
 
 const gapStyles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.sm,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
+  wrap:  { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, paddingBottom: Spacing.sm },
+  label: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
 });
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
-  centered: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  root:     { flex: 1, backgroundColor: Colors.bg },
+  centered: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
+
   header: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Platform.OS === 'android' ? Spacing.lg : Spacing.sm,
@@ -161,15 +162,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  greeting: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginTop: 2,
-  },
-  scroll: { flex: 1 },
+  greeting:    { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.textPrimary, marginTop: 2 },
+
+  scroll:        { flex: 1 },
   scrollContent: { paddingTop: Spacing.lg },
+
   errorBanner: {
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.md,

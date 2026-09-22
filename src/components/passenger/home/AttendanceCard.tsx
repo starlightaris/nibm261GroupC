@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -8,22 +8,11 @@ import {
 } from 'react-native';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import {
-  hasCutoffPassed,
   MarkableAttendanceStatus,
   Shift,
   ShiftAttendance,
-  ShiftTimes,
   TodayAttendance,
 } from '@hooks/useAttendance';
-
-const formatTime = (time: string): string => {
-  const [hour, minute] = time.split(':').map(Number);
-  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-};
 
 const formatConfirmation = (attendance: ShiftAttendance): string => {
   if (attendance.status === 'unmarked' || !attendance.markedAt) {
@@ -41,29 +30,23 @@ const formatConfirmation = (attendance: ShiftAttendance): string => {
 interface ShiftCardProps {
   shift: Shift;
   attendance: ShiftAttendance;
-  cutoffTime: string;
   isMarking: boolean;
-  now: Date;
   onMark: (status: MarkableAttendanceStatus) => void;
 }
 
 function ShiftCard({
   shift,
   attendance,
-  cutoffTime,
   isMarking,
-  now,
   onMark,
 }: ShiftCardProps) {
   const label = shift === 'morning' ? 'Morning' : 'Evening';
-  const cutoffPassed = hasCutoffPassed(cutoffTime, now);
 
   const renderButton = (
     status: MarkableAttendanceStatus,
     text: string
   ) => {
     const selected = attendance.status === status;
-    const disabled = cutoffPassed || isMarking;
     return (
       <TouchableOpacity
         style={[
@@ -72,13 +55,13 @@ function ShiftCard({
             (status === 'present'
               ? styles.presentButton
               : styles.absentButton),
-          disabled && styles.disabledButton,
+          isMarking && styles.disabledButton,
         ]}
         onPress={() => onMark(status)}
-        disabled={disabled}
+        disabled={isMarking}
         accessibilityRole="button"
         accessibilityLabel={`${label} shift ${status}`}
-        accessibilityState={{ disabled, selected }}
+        accessibilityState={{ disabled: isMarking, selected }}
       >
         <Text style={[styles.actionText, selected && styles.selectedActionText]}>
           {text}
@@ -88,14 +71,9 @@ function ShiftCard({
   };
 
   return (
-    <View style={[styles.card, cutoffPassed && styles.closedCard]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.shiftLabel}>{label}</Text>
-          <Text style={styles.cutoffText}>
-            {cutoffPassed ? 'Closed' : 'Cutoff'} · {formatTime(cutoffTime)}
-          </Text>
-        </View>
+    <View style={styles.card}>
+      <View style={styles.shiftHeader}>
+        <Text style={styles.shiftLabel}>{label}</Text>
         {isMarking && <ActivityIndicator size="small" color={Colors.primary} />}
       </View>
 
@@ -107,10 +85,6 @@ function ShiftCard({
         {renderButton('present', '✓ Present')}
         {renderButton('absent', '✕ Absent')}
       </View>
-
-      {cutoffPassed && (
-        <Text style={styles.closedHelp}>Attendance can no longer be changed.</Text>
-      )}
     </View>
   );
 }
@@ -118,46 +92,59 @@ function ShiftCard({
 interface Props {
   attendance: TodayAttendance;
   marking: Shift | null;
-  shiftTimes: ShiftTimes;
   onMark: (shift: Shift, status: MarkableAttendanceStatus) => void;
 }
 
-export default function AttendanceCard({
-  attendance,
-  marking,
-  shiftTimes,
-  onMark,
-}: Props) {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
+export default function AttendanceCard({ attendance, marking, onMark }: Props) {
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
-    <View style={styles.cards}>
-      <ShiftCard
-        shift="morning"
-        attendance={attendance.morning}
-        cutoffTime={shiftTimes.morningCutoff}
-        isMarking={marking === 'morning'}
-        now={now}
-        onMark={(status) => onMark('morning', status)}
-      />
-      <ShiftCard
-        shift="evening"
-        attendance={attendance.evening}
-        cutoffTime={shiftTimes.eveningCutoff}
-        isMarking={marking === 'evening'}
-        now={now}
-        onMark={(status) => onMark('evening', status)}
-      />
+    <View>
+      <View style={styles.dateHeader}>
+        <Text style={styles.sectionLabel}>Today's Attendance</Text>
+        <Text style={styles.dateText}>{today}</Text>
+      </View>
+
+      <View style={styles.cards}>
+        <ShiftCard
+          shift="morning"
+          attendance={attendance.morning}
+          isMarking={marking === 'morning'}
+          onMark={(status) => onMark('morning', status)}
+        />
+        <ShiftCard
+          shift="evening"
+          attendance={attendance.evening}
+          isMarking={marking === 'evening'}
+          onMark={(status) => onMark('evening', status)}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  dateHeader: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  dateText: {
+    fontSize: 13,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   cards: { gap: Spacing.md, marginHorizontal: Spacing.lg },
   card: {
     backgroundColor: Colors.white,
@@ -171,21 +158,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  closedCard: { backgroundColor: '#F8FAFC' },
-  header: {
+  shiftHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   shiftLabel: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
-  cutoffText: {
-    marginTop: 3,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
   confirmation: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
     marginBottom: Spacing.md,
     color: Colors.textSecondary,
     fontSize: 13,
@@ -205,5 +185,4 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.55 },
   actionText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
   selectedActionText: { color: Colors.white },
-  closedHelp: { marginTop: Spacing.sm, fontSize: 12, color: Colors.muted },
 });

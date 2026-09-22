@@ -21,7 +21,6 @@ import type {
   PassengerRootParams,
 } from '@navigation/types';
 import type { UserRole } from '../types/auth';
-import { flushPendingNavigation } from '@navigation/navigationRef';
 
 const Auth          = createNativeStackNavigator<AuthStackParams>();
 const DriverRoot    = createNativeStackNavigator<RootStackParams>();
@@ -85,12 +84,6 @@ export default function RootNavigator() {
     });
     return unsub;
   }, []);
-
-  useEffect(() => {
-    if (role !== 'passenger') return;
-    const timer = setTimeout(flushPendingNavigation, 0);
-    return () => clearTimeout(timer);
-  }, [role]);
 
   if (loading) {
     return (

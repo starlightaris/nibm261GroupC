@@ -46,7 +46,7 @@ export default function DriverSignUpBusScreen() {
 
       // registerDriver writes users/{uid} + vehicles/{uid} in one call.
       // vehicles/{uid} gets: vehicleName, plateNumber, capacity (default 4),
-      // inviteCode (auto-generated), shiftTimes (defaults 09:00 / 17:00).
+      // inviteCode (auto-generated).
       // routeTags, description, whatsappLink are extra fields we merge in.
       await registerDriver(
         email,
