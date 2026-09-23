@@ -11,7 +11,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { ViewShotRef } from 'react-native-view-shot';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 
 interface Props {
@@ -31,7 +31,7 @@ export default function InviteCard({
   const [qrVisible, setQrVisible] = useState(false);
   const [sharing,   setSharing]   = useState(false);
 
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(inviteCode);
@@ -43,7 +43,7 @@ export default function InviteCard({
     if (!viewShotRef.current) return;
     try {
       setSharing(true);
-      const uri = await (viewShotRef.current as any).capture();
+      const uri = await viewShotRef.current.capture();
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) return;
       await Sharing.shareAsync(uri, {

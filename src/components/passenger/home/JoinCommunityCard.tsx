@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   camera:         { flex: 1 },
 
   // Semi-transparent overlay with transparent window
-  scannerOverlay: { ...StyleSheet.absoluteFillObject, flexDirection: 'column' },
+  scannerOverlay: { ...StyleSheet.absoluteFill, flexDirection: 'column' },
   scannerDim:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
   scannerRow:     { flexDirection: 'row', height: WINDOW_SIZE },
   scannerWindow:  { width: WINDOW_SIZE, height: WINDOW_SIZE },

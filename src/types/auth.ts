@@ -11,6 +11,8 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
   createdAt: string;
   pickupLocation?: Location;

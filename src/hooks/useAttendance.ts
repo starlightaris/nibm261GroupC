@@ -1,19 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type AttendanceStatus = 'present' | 'absent' | 'unmarked';
+export type MarkableAttendanceStatus = Exclude<AttendanceStatus, 'unmarked'>;
 export type Shift = 'morning' | 'evening';
 
 export interface ShiftAttendance {
@@ -30,134 +20,134 @@ export interface TodayAttendance {
 export interface UseAttendanceResult {
   attendance: TodayAttendance;
   loading: boolean;
-  marking: Shift | null;   // which shift is currently being saved
+  marking: Shift | null;
   error: string | null;
-  mark: (shift: Shift, status: AttendanceStatus) => Promise<void>;
+  mark: (shift: Shift, status: MarkableAttendanceStatus) => Promise<void>;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getTodayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-const DEFAULT_SHIFT: ShiftAttendance = { status: 'unmarked', markedAt: null, docId: null };
-const DEFAULT_ATTENDANCE: TodayAttendance = { morning: DEFAULT_SHIFT, evening: DEFAULT_SHIFT };
+const createDefaultAttendance = (): TodayAttendance => ({
+  morning: { status: 'unmarked', markedAt: null, docId: null },
+  evening: { status: 'unmarked', markedAt: null, docId: null },
+});
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+const toIsoString = (value: any): string | null => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  return null;
+};
 
 export function useAttendance(
   communityId: string | null
 ): UseAttendanceResult {
-  const [attendance, setAttendance] = useState<TodayAttendance>(DEFAULT_ATTENDANCE);
-  const [loading,    setLoading]    = useState(true);
-  const [marking,    setMarking]    = useState<Shift | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
+  const [attendance, setAttendance] = useState<TodayAttendance>(
+    createDefaultAttendance
+  );
+  const [loading, setLoading] = useState(true);
+  const [marking, setMarking] = useState<Shift | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const today = getTodayString();
-  const uid   = auth.currentUser?.uid ?? null;
-
-  // ── Fetch today's attendance ──────────────────────────────────────────────
+  const uid = auth.currentUser?.uid ?? null;
 
   useEffect(() => {
     if (!communityId || !uid) {
+      setAttendance(createDefaultAttendance());
       setLoading(false);
       return;
     }
 
-    async function fetch() {
+    let active = true;
+    const fetchAttendance = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const q = query(
-          collection(db, 'attendance'),
-          where('communityId', '==', communityId),
-          where('userId',      '==', uid),
-          where('date',        '==', today)
-        );
-        const snap = await getDocs(q);
+        const morningId = `${communityId}_${uid}_${today}_morning`;
+        const eveningId = `${communityId}_${uid}_${today}_evening`;
+        const [morningSnap, eveningSnap] = await Promise.all([
+          getDoc(doc(db, 'attendance', morningId)),
+          getDoc(doc(db, 'attendance', eveningId)),
+        ]);
 
-        const result: TodayAttendance = { ...DEFAULT_ATTENDANCE };
+        if (!active) return;
+        const readShift = (
+          snap: typeof morningSnap,
+          docId: string
+        ): ShiftAttendance => {
+          if (!snap.exists()) return { status: 'unmarked', markedAt: null, docId };
+          const data = snap.data();
+          return {
+            status: data.status ?? 'unmarked',
+            markedAt: toIsoString(data.markedAt ?? data.updatedAt),
+            docId,
+          };
+        };
 
-        snap.forEach((d) => {
-          const data  = d.data();
-          const shift = data.shift as Shift;
-          if (shift === 'morning' || shift === 'evening') {
-            result[shift] = {
-              status:   data.status   ?? 'unmarked',
-              markedAt: data.markedAt ?? null,
-              docId:    d.id,
-            };
-          }
+        setAttendance({
+          morning: readShift(morningSnap, morningId),
+          evening: readShift(eveningSnap, eveningId),
         });
-
-        setAttendance(result);
       } catch (err: any) {
         console.error('[useAttendance] fetch:', err);
-        setError(err?.message ?? 'Failed to load attendance.');
+        if (active) setError(err?.message ?? 'Failed to load attendance.');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
-    }
+    };
 
-    fetch();
+    void fetchAttendance();
+    return () => {
+      active = false;
+    };
   }, [communityId, uid, today]);
 
-  // ── Mark attendance ───────────────────────────────────────────────────────
+  const mark = useCallback(
+    async (shift: Shift, status: MarkableAttendanceStatus) => {
+      if (!communityId || !uid) return;
 
-  const mark = useCallback(async (shift: Shift, status: AttendanceStatus) => {
-    if (!communityId || !uid) return;
+      setMarking(shift);
+      setError(null);
+      try {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        const userName = userSnap.exists() ? userSnap.data().name : 'Passenger';
+        const markedAt = new Date().toISOString();
+        const docId = `${communityId}_${uid}_${today}_${shift}`;
+        const isNewRecord = attendance[shift].markedAt === null;
 
-    const userSnap = await import('firebase/firestore').then(({ getDoc, doc: fDoc }) =>
-      getDoc(fDoc(db, 'users', uid))
-    );
-    const userName = userSnap.exists() ? userSnap.data().name : 'Passenger';
+        await setDoc(
+          doc(db, 'attendance', docId),
+          {
+            communityId,
+            userId: uid,
+            userName,
+            date: today,
+            shift,
+            status,
+            markedAt,
+            updatedAt: markedAt,
+            ...(isNewRecord ? { createdAt: markedAt } : {}),
+          },
+          { merge: true }
+        );
 
-    setMarking(shift);
-    setError(null);
-
-    try {
-      const existing = attendance[shift];
-      const now      = new Date().toISOString();
-
-      if (existing.docId) {
-        // Update existing doc
-        await updateDoc(doc(db, 'attendance', existing.docId), {
-          status,
-          markedAt: now,
-        });
-      } else {
-        // Create new doc
-        const newRef = doc(collection(db, 'attendance'));
-        await setDoc(newRef, {
-          communityId,
-          userId:    uid,
-          userName,
-          date:      today,
-          shift,
-          status,
-          markedAt:  now,
-          createdAt: now,
-        });
-        // Update local docId so next save is an update not a create
-        setAttendance((prev) => ({
-          ...prev,
-          [shift]: { ...prev[shift], docId: newRef.id },
+        setAttendance((previous) => ({
+          ...previous,
+          [shift]: { status, markedAt, docId },
         }));
+      } catch (err: any) {
+        console.error('[useAttendance] mark:', err);
+        setError(err?.message ?? 'Failed to save attendance.');
+      } finally {
+        setMarking(null);
       }
-
-      // Optimistic local update
-      setAttendance((prev) => ({
-        ...prev,
-        [shift]: { ...prev[shift], status, markedAt: now },
-      }));
-    } catch (err: any) {
-      console.error('[useAttendance] mark:', err);
-      setError(err?.message ?? 'Failed to save attendance.');
-    } finally {
-      setMarking(null);
-    }
-  }, [communityId, uid, today, attendance]);
+    },
+    [attendance, communityId, today, uid]
+  );
 
   return { attendance, loading, marking, error, mark };
 }

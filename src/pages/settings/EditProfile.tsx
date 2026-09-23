@@ -18,42 +18,58 @@ import { useAuth } from '@hooks/useAuth';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from 'firebaseConfig';
 import { Colors, Radius, Spacing } from '@styles/tokens';
+import { isValidMobile } from '@utils/validation';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 
-export default function EditProfile({ navigation }: Props) {
+export default function EditProfile(_props: Props) {
   const { user, loading: authLoading } = useAuth();
-  
-  const [name, setName] = useState('');
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Initialize fields once user is loaded
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
-      setPhone(user.phone || (user as any).mobile || '');
+      const nameParts = (user.name ?? '').trim().split(/\s+/).filter(Boolean);
+      setFirstName(user.firstName ?? nameParts[0] ?? '');
+      setLastName(user.lastName ?? nameParts.slice(1).join(' '));
+      setPhone(user.phone ?? '');
     }
   }, [user]);
 
   const handleSave = async () => {
     if (!user) return;
-    if (!name.trim()) {
-      Alert.alert('Missing Info', 'Name cannot be empty.');
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert('Missing information', 'First name and last name are required.');
+      return;
+    }
+    if (!isValidMobile(phone)) {
+      Alert.alert('Invalid mobile number', 'Enter a valid mobile number using 9 to 15 digits.');
       return;
     }
 
     setIsSaving(true);
+    setSuccessMessage(null);
     try {
+      const trimmedFirstName = firstName.trim();
+      const trimmedLastName = lastName.trim();
+      const trimmedPhone = phone.trim();
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, {
-        name: name.trim(),
-        phone: phone.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        name: `${trimmedFirstName} ${trimmedLastName}`,
+        phone: trimmedPhone,
+        updatedAt: new Date().toISOString(),
       }, { merge: true });
-      
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+
+      setSuccessMessage('Profile updated successfully.');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Success', 'Profile updated successfully.');
+      }
     } catch (err) {
       console.error('Error saving profile:', err);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
@@ -85,27 +101,51 @@ export default function EditProfile({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>First Name</Text>
             <TextInput
               style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. John Doe"
+              value={firstName}
+              onChangeText={(value) => {
+                setFirstName(value);
+                setSuccessMessage(null);
+              }}
+              placeholder="e.g. John"
               placeholderTextColor={Colors.muted}
+              autoCapitalize="words"
+              accessibilityLabel="First name"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              value={lastName}
+              onChangeText={(value) => {
+                setLastName(value);
+                setSuccessMessage(null);
+              }}
+              placeholder="e.g. Silva"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="words"
+              accessibilityLabel="Last name"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mobile Number</Text>
             <TextInput
               style={styles.input}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(value) => {
+                setPhone(value);
+                setSuccessMessage(null);
+              }}
               placeholder="e.g. 077 123 4567"
               placeholderTextColor={Colors.muted}
               keyboardType="phone-pad"
+              accessibilityLabel="Mobile number"
             />
           </View>
 
@@ -115,14 +155,23 @@ export default function EditProfile({ navigation }: Props) {
               style={[styles.input, styles.inputDisabled]}
               value={user.email}
               editable={false}
+              accessibilityLabel="Email address, read only"
             />
             <Text style={styles.helpText}>Email cannot be changed.</Text>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]} 
+          {successMessage && (
+            <View style={styles.successBanner} accessibilityRole="alert">
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
             onPress={handleSave}
             disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile changes"
           >
             {isSaving ? (
               <ActivityIndicator color={Colors.white} />
@@ -181,6 +230,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.muted,
     marginTop: 4,
+  },
+  successBanner: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+    borderWidth: 1,
+    borderRadius: Radius.button,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  successText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   saveBtn: {
     backgroundColor: Colors.primary,

@@ -41,7 +41,16 @@ export function useAuth(): UseAuthResult {
       unsubUser = onSnapshot(
         doc(db, 'users', firebaseUser.uid),
         (snap) => {
-          setUser(snap.exists() ? (snap.data() as AuthUser) : null);
+          if (!snap.exists()) {
+            setUser(null);
+          } else {
+            const data = snap.data();
+            setUser({
+              ...data,
+              uid: firebaseUser.uid,
+              email: data.email ?? firebaseUser.email ?? '',
+            } as AuthUser);
+          }
           setLoading(false);
         },
         (err) => {
