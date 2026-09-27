@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -13,6 +12,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebaseConfig';
 import { AuthUser } from './src/types/auth';
 import RootNavigator from './src/navigation/RootNavigator';
+import SplashScreen from './src/pages/splash/SplashScreen';
+import { useNotificationSetup } from './src/hooks/useNotificationSetup';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -77,19 +78,14 @@ export default function App() {
     };
   }, []);
 
+  // SCRUM-208: register this device for push notifications once we know
+  // someone is logged in (safe to call every render — the hook no-ops when
+  // `enabled` is false and cleans up its listeners on unmount).
+  useNotificationSetup(!loading && !!user);
+
   if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#0B1120',
-        }}
-      >
-        <ActivityIndicator size="large" color="#6C63FF" />
-      </View>
-    );
+    // SCRUM-213: branded splash screen while Firebase auth/profile resolve.
+    return <SplashScreen message="Signing you in…" />;
   }
 
   return (
