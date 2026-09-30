@@ -8,26 +8,12 @@ export type AttendanceRecord = {
   status: DriverAttendanceStatus;
 };
 
-export const DEFAULT_CUTOFFS: Record<DriverShift, string> = {
-  morning: '09:00',
-  evening: '17:00',
-};
-
 export function localDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function currentDriverShift(date: Date): DriverShift {
   return date.getHours() < 12 ? 'morning' : 'evening';
-}
-
-export function cutoffLabel(date: Date, cutoff: string): string {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(cutoff);
-  if (!match) return 'Cutoff not set';
-  const minutes = Number(match[1]) * 60 + Number(match[2]);
-  if (date.getHours() * 60 + date.getMinutes() >= minutes) return 'Closed';
-  return `Cutoff ${new Date(2000, 0, 1, Number(match[1]), Number(match[2]))
-    .toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 export function summarizeShift(

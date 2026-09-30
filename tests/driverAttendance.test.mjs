@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  currentDriverShift, cutoffLabel, localDateKey, summarizeShift,
+  currentDriverShift, localDateKey, summarizeShift,
 } from '../src/utils/driverAttendance.ts';
 
 test('uses local date and switches shifts at noon', () => {
@@ -36,10 +36,4 @@ test('uses the exact colour thresholds and handles no members', () => {
   assert.equal(summarizeShift(members, records, 'morning').progressColor, '#F59E0B');
   assert.equal(summarizeShift(members.slice(0, 3), records, 'morning').progressColor, '#16A34A');
   assert.equal(summarizeShift([], records, 'morning').progressColor, '#CBD5E1');
-});
-
-test('shows cutoff time before it passes and Closed at the cutoff', () => {
-  assert.match(cutoffLabel(new Date(2026, 8, 27, 8, 59), '09:00'), /^Cutoff /);
-  assert.equal(cutoffLabel(new Date(2026, 8, 27, 9, 0), '09:00'), 'Closed');
-  assert.equal(cutoffLabel(new Date(2026, 8, 27, 8, 0), 'invalid'), 'Cutoff not set');
 });

@@ -12,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../firebaseConfig';
-import { DEFAULT_CUTOFFS } from '../utils/driverAttendance';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +30,6 @@ export interface CommunityData {
   inviteCode: string;
   vehicleName: string;
   plateNumber: string;
-  shiftTimes: { morningCutoff: string; eveningCutoff: string };
 
   members: CommunityMember[];
 }
@@ -101,10 +99,6 @@ export function useCommunity(): UseCommunityResult {
             inviteCode:  v.inviteCode  ?? '',
             vehicleName: v.vehicleName ?? '',
             plateNumber: v.plateNumber ?? '',
-            shiftTimes: {
-              morningCutoff: v.shiftTimes?.morningCutoff ?? DEFAULT_CUTOFFS.morning,
-              eveningCutoff: v.shiftTimes?.eveningCutoff ?? DEFAULT_CUTOFFS.evening,
-            },
       
             members:     [],
           });
@@ -139,10 +133,6 @@ export function useCommunity(): UseCommunityResult {
               inviteCode:  v.inviteCode  ?? '',
               vehicleName: v.vehicleName ?? '',
               plateNumber: v.plateNumber ?? '',
-              shiftTimes: {
-                morningCutoff: v.shiftTimes?.morningCutoff ?? DEFAULT_CUTOFFS.morning,
-                eveningCutoff: v.shiftTimes?.eveningCutoff ?? DEFAULT_CUTOFFS.evening,
-              },
         
               members,
             });

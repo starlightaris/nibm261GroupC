@@ -10,7 +10,7 @@ import { useCommunity } from '@hooks/useCommunity';
 import InitialsAvatar from '@components/driver/activetrip/InitialsAvatar';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import {
-  DEFAULT_CUTOFFS, currentDriverShift, cutoffLabel, localDateKey,
+  currentDriverShift, localDateKey,
   summarizeShift, type AttendanceRecord, type DriverShift,
 } from '@utils/driverAttendance';
 import type { DriverTabParams } from '@navigation/types';
@@ -64,10 +64,6 @@ export default function DriverHomeScreen({ navigation }: Props) {
   const morning = useMemo(() => summarizeShift(members, records, 'morning'), [members, records]);
   const evening = useMemo(() => summarizeShift(members, records, 'evening'), [members, records]);
   const confirmed = activeShift === 'morning' ? morning.confirmed : evening.confirmed;
-  const cutoffs = {
-    morning: community?.shiftTimes.morningCutoff ?? DEFAULT_CUTOFFS.morning,
-    evening: community?.shiftTimes.eveningCutoff ?? DEFAULT_CUTOFFS.evening,
-  };
 
   if (communityLoading || attendanceLoading) {
     return <SafeAreaView style={styles.centered}><ActivityIndicator color={Colors.primary} size="large" /><Text style={styles.subtle}>Loading attendance…</Text></SafeAreaView>;
@@ -83,8 +79,8 @@ export default function DriverHomeScreen({ navigation }: Props) {
       <View style={styles.header}><Text style={styles.title}>Driver Home</Text><Text style={styles.subtle}>Today’s attendance</Text></View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.shiftRow}>
-          <ShiftCard shift="morning" now={now} cutoff={cutoffs.morning} active={activeShift === 'morning'} summary={morning} />
-          <ShiftCard shift="evening" now={now} cutoff={cutoffs.evening} active={activeShift === 'evening'} summary={evening} />
+          <ShiftCard shift="morning" active={activeShift === 'morning'} summary={morning} />
+          <ShiftCard shift="evening" active={activeShift === 'evening'} summary={evening} />
         </View>
 
         <View style={styles.listCard}>
@@ -109,10 +105,8 @@ export default function DriverHomeScreen({ navigation }: Props) {
   );
 }
 
-function ShiftCard({ shift, now, cutoff, active, summary }: {
+function ShiftCard({ shift, active, summary }: {
   shift: DriverShift;
-  now: Date;
-  cutoff: string;
   active: boolean;
   summary: ReturnType<typeof summarizeShift>;
 }) {
@@ -125,7 +119,6 @@ function ShiftCard({ shift, now, cutoff, active, summary }: {
       <Text style={styles.count}>{summary.confirmed.length}<Text style={styles.total}> / {summary.total}</Text></Text>
       <Text style={styles.subtle}>confirmed</Text>
       <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${summary.percent}%`, backgroundColor: summary.progressColor }]} /></View>
-      <Text style={styles.cutoff}>{cutoffLabel(now, cutoff)}</Text>
     </View>
   );
 }
@@ -148,7 +141,6 @@ const styles = StyleSheet.create({
   total: { fontSize: 16, fontWeight: '600', color: Colors.textSecondary },
   progressTrack: { height: 7, borderRadius: Radius.pill, backgroundColor: Colors.border, overflow: 'hidden', marginTop: Spacing.md },
   progressFill: { height: '100%', borderRadius: Radius.pill },
-  cutoff: { color: Colors.textSecondary, fontSize: 12, marginTop: Spacing.sm },
   listCard: { backgroundColor: Colors.white, borderRadius: Radius.card, padding: Spacing.lg, marginTop: Spacing.lg },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.md },
   passengerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
