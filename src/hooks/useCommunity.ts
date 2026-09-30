@@ -19,8 +19,10 @@ export interface CommunityMember {
   userId: string;
   name: string;
   initials: string;
-  pickupLocation:  { latitude: number; longitude: number };
-  dropoffLocation: { latitude: number; longitude: number };
+  // Null until the passenger sets locations after joining; address is the
+  // human-readable place name saved with the coordinates.
+  pickupLocation:  { address?: string; latitude: number; longitude: number } | null;
+  dropoffLocation: { address?: string; latitude: number; longitude: number } | null;
 }
 
 export interface CommunityData {

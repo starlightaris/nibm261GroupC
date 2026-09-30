@@ -12,6 +12,7 @@ import {
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { CommunityMember } from '@hooks/useCommunity';
 import InitialsAvatar from '@components/driver/activetrip/InitialsAvatar';
+import { pickupLabel } from '@utils/memberLocation';
 
 // Soft palette — cycles through members to give each a distinct avatar colour
 const AVATAR_COLORS = [
@@ -71,8 +72,7 @@ export default function MemberRow({ member, index, isRemoving, onRemove }: Props
       <View style={styles.info}>
         <Text style={styles.name}>{member.name}</Text>
         <Text style={styles.location} numberOfLines={1}>
-          Pickup: {member.pickupLocation.latitude.toFixed(4)},{' '}
-          {member.pickupLocation.longitude.toFixed(4)}
+          {pickupLabel(member.pickupLocation)}
         </Text>
       </View>
 
