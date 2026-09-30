@@ -15,7 +15,7 @@ export interface RouteStopEntry {
 
 // Stops within this radius of each other are treated as the same physical
 // stop and collapsed into one row/marker with multiple passenger icons.
-const STOP_CLUSTER_RADIUS_METERS = 60;
+export const STOP_CLUSTER_RADIUS_METERS = 60;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -89,4 +89,25 @@ export function buildStopEntries(stops: RouteStop[]): RouteStopEntry[] {
   }));
 
   return [...pickupEntries, ...dropoffEntries];
+}
+
+/**
+ * True when no passenger is dropped off before they've been picked up.
+ * Used to block manual reorders that would put a drop-off ahead of its pickup.
+ */
+export function isValidEntryOrder(entries: RouteStopEntry[]): boolean {
+  const pickupIndex = new Map<string, number>();
+  entries.forEach((entry, i) => {
+    if (entry.kind === 'pickup') {
+      entry.passengers.forEach((p) => pickupIndex.set(p.userId, i));
+    }
+  });
+
+  return entries.every((entry, i) => {
+    if (entry.kind !== 'dropoff') return true;
+    return entry.passengers.every((p) => {
+      const pickedUpAt = pickupIndex.get(p.userId);
+      return pickedUpAt === undefined || pickedUpAt < i;
+    });
+  });
 }

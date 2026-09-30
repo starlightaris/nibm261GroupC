@@ -18,8 +18,8 @@ import Constants from 'expo-constants';
 import { useActiveTrip } from '@hooks/useActiveTrip';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
-import { RouteStop, Shift } from '@hooks/useDriverRoute';
 import { Colors, Radius, Spacing } from '@styles/tokens';
+import { countTripActions, tripStopKind, type TripStop } from '@utils/tripStops';
 import NextStopCard from '@components/driver/activetrip/NextStopCard';
 import PassengerQueue from '@components/driver/activetrip/PassengerQueue';
 import TripCompleteCard from '@components/driver/activetrip/TripCompleteCard';
@@ -39,6 +39,13 @@ const MAPS_API_KEY: string = Constants.expoConfig?.extra?.googleMapsApiKey ?? ''
 
 function regionFromLatLng(coord: LatLng, delta = 0.015) {
   return { ...coord, latitudeDelta: delta, longitudeDelta: delta };
+}
+
+function stopTitle(stop: TripStop): string {
+  const parts: string[] = [];
+  if (stop.dropoffs.length > 0) parts.push(`Drop off: ${stop.dropoffs.map((p) => p.name).join(', ')}`);
+  if (stop.pickups.length > 0) parts.push(`Pick up: ${stop.pickups.map((p) => p.name).join(', ')}`);
+  return parts.join(' · ');
 }
 
 // ─── Loading screen ───────────────────────────────────────────────────────────
@@ -79,7 +86,7 @@ export default function ActiveTripScreen() {
   const mapRef = useRef<MapView>(null);
 
   // ── Trip state ──────────────────────────────────────────────────────────────
-  const { trip, loading: tripLoading, error: tripError, startTrip, markPickedUp, endTrip } =
+  const { trip, loading: tripLoading, error: tripError, startTrip, completeStop, endTrip } =
     useActiveTrip();
 
   // ── Directions ──────────────────────────────────────────────────────────────
@@ -104,14 +111,14 @@ export default function ActiveTripScreen() {
   // ── Re-centre map on next stop or driver location change ────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
-    const target = driverLocation ?? trip.nextStop?.pickupLocation ?? null;
+    const target = driverLocation ?? trip.nextStop?.location ?? null;
     if (!target) return;
     mapRef.current.animateToRegion(regionFromLatLng(target), 600);
   }, [trip.currentStopIndex, driverLocation]);
 
-  // ── Mark picked up + refresh directions ────────────────────────────────────
-  const handleMarkPickedUp = async () => {
-    await markPickedUp();
+  // ── Complete stop + refresh directions ─────────────────────────────────────
+  const handleCompleteStop = async () => {
+    await completeStop();
     refreshDirections();
   };
 
@@ -131,7 +138,7 @@ export default function ActiveTripScreen() {
 
   const isComplete   = trip.status === 'completed';
   const initialRegion = trip.nextStop
-    ? regionFromLatLng(trip.nextStop.pickupLocation)
+    ? regionFromLatLng(trip.nextStop.location)
     : { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 
   return (
@@ -150,8 +157,8 @@ export default function ActiveTripScreen() {
       <View style={[styles.progressPill, { top: headerTop }]}>
         <Text style={styles.progressText}>
           {isComplete
-            ? `All ${trip.allStops.length} picked up`
-            : `${trip.currentStopIndex} / ${trip.allStops.length} picked up`}
+            ? `All ${trip.allStops.length} stops done`
+            : `${trip.currentStopIndex} / ${trip.allStops.length} stops done`}
         </Text>
       </View>
 
@@ -188,33 +195,45 @@ export default function ActiveTripScreen() {
         {/* Fallback straight-line polyline if directions haven't loaded yet */}
         {fullPolyline.length === 0 && trip.remainingStops.length > 1 && (
           <Polyline
-            coordinates={trip.remainingStops.map((s) => s.pickupLocation)}
+            coordinates={trip.remainingStops.map((s) => s.location)}
             strokeColor={Colors.primary}
             strokeWidth={3}
             lineDashPattern={[6, 4]}
           />
         )}
 
-        {/* Remaining stop markers */}
-        {trip.remainingStops.map((stop, i) => (
-          <Marker
-            key={`rem-${stop.userId}`}
-            coordinate={stop.pickupLocation}
-            title={stop.name}
-            description={i === 0 ? nextEta ?? 'Next stop' : undefined}
-          >
-            <View style={styles.markerWrap}>
-              <View style={[styles.marker, i === 0 && styles.markerNext]}>
-                <Text style={styles.markerText}>{trip.currentStopIndex + i + 1}</Text>
+        {/* Remaining stop markers — blue pickup, purple drop-off, blue with a
+            purple ring when the stop is both */}
+        {trip.remainingStops.map((stop, i) => {
+          const kind = tripStopKind(stop);
+          const fill = kind === 'dropoff' ? Colors.purple : Colors.primary;
+          return (
+            <Marker
+              key={`rem-${stop.id}`}
+              coordinate={stop.location}
+              title={stopTitle(stop)}
+              description={i === 0 ? nextEta ?? 'Next stop' : undefined}
+            >
+              <View style={styles.markerWrap}>
+                <View
+                  style={[
+                    styles.marker,
+                    { backgroundColor: fill },
+                    kind === 'both' && styles.markerBoth,
+                    i === 0 && styles.markerNext,
+                  ]}
+                >
+                  <Text style={styles.markerText}>{trip.currentStopIndex + i + 1}</Text>
+                </View>
+                <View style={[styles.markerTail, { borderTopColor: fill }]} />
               </View>
-              <View style={[styles.markerTail, i === 0 && styles.markerTailNext]} />
-            </View>
-          </Marker>
-        ))}
+            </Marker>
+          );
+        })}
 
         {/* Completed stop markers */}
         {trip.completedStops.map((stop) => (
-          <Marker key={`done-${stop.userId}`} coordinate={stop.pickupLocation}>
+          <Marker key={`done-${stop.id}`} coordinate={stop.location}>
             <View style={styles.markerDone}>
               <Text style={styles.markerDoneText}>✓</Text>
             </View>
@@ -225,7 +244,11 @@ export default function ActiveTripScreen() {
       {/* ── Bottom sheet ─────────────────────────────────────────────────── */}
       <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {isComplete ? (
-          <TripCompleteCard total={trip.allStops.length} onDone={handleDone} />
+          <TripCompleteCard
+            pickups={countTripActions(trip.allStops).pickups}
+            dropoffs={countTripActions(trip.allStops).dropoffs}
+            onDone={handleDone}
+          />
         ) : trip.nextStop ? (
           <NextStopCard
             stop={trip.nextStop}
@@ -233,7 +256,7 @@ export default function ActiveTripScreen() {
             total={trip.allStops.length}
             eta={nextEta}
             nextInstruction={nextInstruction}
-            onMarkPickedUp={handleMarkPickedUp}
+            onComplete={handleCompleteStop}
             loading={tripLoading}
           />
         ) : null}
@@ -249,7 +272,7 @@ export default function ActiveTripScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const SHEET_HEIGHT = 280;
+const SHEET_HEIGHT = 330;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
@@ -339,15 +362,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.white,
   },
-  markerNext:     { backgroundColor: Colors.primary, width: 36, height: 36, borderRadius: 18 },
+  markerNext:     { width: 36, height: 36, borderRadius: 18 },
+  markerBoth:     { borderColor: Colors.purple, borderWidth: 3 },
   markerText:     { color: Colors.white, fontSize: 12, fontWeight: '700' },
   markerTail: {
     width: 0, height: 0,
     borderLeftWidth: 4, borderRightWidth: 4, borderTopWidth: 6,
     borderLeftColor: 'transparent', borderRightColor: 'transparent',
-    borderTopColor: Colors.muted, marginTop: -1,
+    borderTopColor: Colors.primary, marginTop: -1,
   },
-  markerTailNext: { borderTopColor: Colors.primary },
   markerDone: {
     width: 22, height: 22, borderRadius: 11,
     backgroundColor: Colors.success,

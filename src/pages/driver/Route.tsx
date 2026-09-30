@@ -5,7 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import { useDriverRoute } from '@hooks/useDriverRoute';
 import { useWaypointPolyline } from '@hooks/useWaypointPolyline';
-import { buildStopEntries, type RouteStopEntry } from '@utils/routeStopEntries';
+import { buildStopEntries, isValidEntryOrder, type RouteStopEntry } from '@utils/routeStopEntries';
+import { buildTripStops } from '@utils/tripStops';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import type { RootStackParams } from '@navigation/types';
 import ShiftBadge from '@components/driver/route/ShiftBadge';
@@ -32,14 +33,18 @@ export default function RouteScreen() {
     setEntries(defaultEntries);
   }, [defaultEntries]);
 
+  // Swap two neighbours, or null if it's out of range or would drop someone
+  // off before they've been picked up.
+  function swapped(list: RouteStopEntry[], index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= list.length) return null;
+    const next = [...list];
+    [next[index], next[target]] = [next[target], next[index]];
+    return isValidEntryOrder(next) ? next : null;
+  }
+
   function moveEntry(index: number, direction: -1 | 1) {
-    setEntries((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    setEntries((prev) => swapped(prev, index, direction) ?? prev);
   }
 
   // Real driving-route polyline through all stops (driver → stop1 → stop2 → …),
@@ -69,13 +74,11 @@ export default function RouteScreen() {
 
   const handleStartTrip = () => {
     if (!communityId || !activeShift) return;
-    // Pickup order follows the driver's (possibly manually reordered) list,
-    // not the raw hook order — so a manual reorder actually changes the trip.
-    const pickupOrder = entries
-      .filter((e) => e.kind === 'pickup')
-      .flatMap((e) => e.passengers);
+    // The trip follows the driver's (possibly manually reordered) list of
+    // pickups and drop-offs; neighbouring entries at the same place merge
+    // into a single stop.
     navigation.navigate('ActiveTrip', {
-      stops: pickupOrder,
+      stops: buildTripStops(entries),
       shift: activeShift,
       communityId,
     });
@@ -121,6 +124,8 @@ export default function RouteScreen() {
                 entry={entry}
                 index={i}
                 total={entries.length}
+                canMoveUp={swapped(entries, i, -1) !== null}
+                canMoveDown={swapped(entries, i, 1) !== null}
                 onMoveUp={() => moveEntry(i, -1)}
                 onMoveDown={() => moveEntry(i, 1)}
               />

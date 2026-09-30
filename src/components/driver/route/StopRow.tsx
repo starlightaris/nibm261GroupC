@@ -24,13 +24,15 @@ interface Props {
   entry: RouteStopEntry;
   index: number;
   total: number;
+  /** False when the move is out of range or would put a drop-off before its pickup */
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
 
-export default function StopRow({ entry, index, total, onMoveUp, onMoveDown }: Props) {
+export default function StopRow({ entry, index, total, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: Props) {
   const isDropoff = entry.kind === 'dropoff';
-  const isFirst = index === 0;
   const isLast = index === total - 1;
   const names = entry.passengers.map((p) => p.name).join(', ');
 
@@ -67,20 +69,20 @@ export default function StopRow({ entry, index, total, onMoveUp, onMoveDown }: P
       {/* Manual reorder controls */}
       <View style={styles.moveCol}>
         <TouchableOpacity
-          style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}
+          style={[styles.moveBtn, !canMoveUp && styles.moveBtnDisabled]}
           onPress={onMoveUp}
-          disabled={isFirst}
+          disabled={!canMoveUp}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          <Ionicons name="chevron-up" size={16} color={isFirst ? Colors.muted : Colors.textSecondary} />
+          <Ionicons name="chevron-up" size={16} color={canMoveUp ? Colors.textSecondary : Colors.muted} />
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}
+          style={[styles.moveBtn, !canMoveDown && styles.moveBtnDisabled]}
           onPress={onMoveDown}
-          disabled={isLast}
+          disabled={!canMoveDown}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          <Ionicons name="chevron-down" size={16} color={isLast ? Colors.muted : Colors.textSecondary} />
+          <Ionicons name="chevron-down" size={16} color={canMoveDown ? Colors.textSecondary : Colors.muted} />
         </TouchableOpacity>
       </View>
     </View>

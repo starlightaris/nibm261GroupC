@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
-import type { RouteStop } from '@navigation/types';
+import type { TripStop } from '@utils/tripStops';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ export interface DirectionStep {
 }
 
 export interface StopRoute {
-  stop: RouteStop;
+  stop: TripStop;
   polyline: LatLng[];        // decoded points for this leg
   steps: DirectionStep[];    // turn-by-turn for this leg
   etaSeconds: number;        // total duration in seconds
@@ -36,7 +36,7 @@ export interface UseRouteDirectionsResult {
   driverLocation: LatLng | null;
   loading: boolean;
   error: string | null;
-  /** Call after markPickedUp to re-fetch from new position */
+  /** Call after completeStop to re-fetch from new position */
   refresh: () => void;
 }
 
@@ -181,7 +181,7 @@ export async function fetchLeg(
 
 interface UseRouteDirectionsParams {
   /** Remaining stops to route through — pass trip.remainingStops */
-  remainingStops: RouteStop[];
+  remainingStops: TripStop[];
   /** Google Maps API key — pass from Constants.expoConfig?.extra?.googleMapsApiKey */
   apiKey: string;
   /** Skip fetching when trip isn't active yet */
@@ -236,7 +236,7 @@ export function useRouteDirections({
         setDriverLocation(origin);
 
         // 2. Build waypoints: driver → stop[0] → stop[1] → ...
-        const waypoints: LatLng[] = [origin, ...stopsRef.current.map((s) => s.pickupLocation)];
+        const waypoints: LatLng[] = [origin, ...stopsRef.current.map((s) => s.location)];
 
         // 3. Fetch each leg concurrently
         const legPromises = waypoints.slice(0, -1).map((wp, i) =>

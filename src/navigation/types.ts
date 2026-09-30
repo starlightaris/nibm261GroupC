@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { TripStop } from '@utils/tripStops';
 
 export type Shift = 'morning' | 'evening';
 
@@ -50,7 +51,7 @@ export type RootStackParams = {
   DriverTabs:    undefined;
   PassengerTabs: undefined;
   ActiveTrip: {
-    stops:       RouteStop[];
+    stops:       TripStop[];
     shift:       Shift;
     communityId: string;
   };
