@@ -8,6 +8,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParams } from '@navigation/types';
+import { Colors, Radius, Spacing } from '@styles/tokens';
 
 type NavProp = NativeStackNavigationProp<AuthStackParams, 'RoleSelect'>;
 
@@ -66,21 +67,15 @@ export default function RoleSelect() {
   );
 }
 
-const COLORS = {
-  bg: '#0B1120',
-  card: '#141E30',
-  border: '#1E2D45',
-  driver: '#2563eb',
-  passenger: '#16a34a',
-  text: '#E2E8F0',
-  muted: '#64748B',
-};
+const DRIVER = Colors.primary;
+const PASSENGER = '#16a34a';
+const INPUT_BORDER = '#E2E8F0';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
-    padding: 20,
+    backgroundColor: Colors.bg,
+    padding: Spacing.xl,
     justifyContent: 'center',
   },
   header: {
@@ -89,59 +84,59 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: 48,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   appName: {
-    color: COLORS.text,
+    color: Colors.textPrimary,
     fontSize: 26,
     fontWeight: '800',
   },
   tagline: {
-    color: COLORS.muted,
-    marginTop: 4,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: Colors.white,
     borderRadius: 24,
-    padding: 24,
+    padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: Colors.border,
   },
   question: {
-    color: COLORS.text,
+    color: Colors.textPrimary,
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     textAlign: 'center',
   },
   btnDriver: {
-    backgroundColor: COLORS.driver,
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: DRIVER,
+    borderRadius: Radius.button,
+    padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   btnPassenger: {
-    backgroundColor: COLORS.passenger,
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: PASSENGER,
+    borderRadius: Radius.button,
+    padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   btnIcon: {
     fontSize: 28,
   },
   btnTitle: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
   btnSub: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 12,
     marginTop: 2,
   },
@@ -149,26 +144,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: INPUT_BORDER,
   },
   dividerText: {
-    color: COLORS.muted,
+    color: Colors.muted,
     fontSize: 12,
   },
   loginBtn: {
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 14,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.button,
     padding: 14,
     alignItems: 'center',
   },
   loginBtnText: {
-    color: COLORS.text,
-    fontWeight: '600',
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });
