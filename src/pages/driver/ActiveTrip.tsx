@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
-  Platform,
   StatusBar,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -72,7 +72,11 @@ function ErrorScreen({ message, onBack }: { message: string; onBack: () => void 
 export default function ActiveTripScreen() {
   const navigation = useNavigation<ActiveTripNavProp>();
   const route = useRoute<ActiveTripRouteProp>();
+  const insets = useSafeAreaInsets();
   const { stops, shift, communityId } = route.params;
+
+  // Offset floating header controls below the device status bar / notch
+  const headerTop = insets.top + Spacing.sm;
 
   const mapRef = useRef<MapView>(null);
 
@@ -133,16 +137,19 @@ export default function ActiveTripScreen() {
     : { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
 
       {/* ── Floating back button ─────────────────────────────────────────── */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+      <TouchableOpacity
+        style={[styles.backBtn, { top: headerTop }]}
+        onPress={() => navigation.goBack()}
+      >
         <Text style={styles.backBtnText}>‹  Route</Text>
       </TouchableOpacity>
 
       {/* ── Progress pill ────────────────────────────────────────────────── */}
-      <View style={styles.progressPill}>
+      <View style={[styles.progressPill, { top: headerTop }]}>
         <Text style={styles.progressText}>
           {isComplete
             ? `All ${trip.allStops.length} picked up`
@@ -152,7 +159,7 @@ export default function ActiveTripScreen() {
 
       {/* ── Directions loading indicator (subtle, top-right) ─────────────── */}
       {dirLoading && (
-        <View style={styles.dirLoadingBadge}>
+        <View style={[styles.dirLoadingBadge, { top: headerTop }]}>
           <ActivityIndicator size="small" color={Colors.primary} />
           <Text style={styles.dirLoadingText}>Routing…</Text>
         </View>
@@ -216,7 +223,7 @@ export default function ActiveTripScreen() {
       </MapView>
 
       {/* ── Bottom sheet ─────────────────────────────────────────────────── */}
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {isComplete ? (
           <TripCompleteCard total={trip.allStops.length} onDone={handleDone} />
         ) : trip.nextStop ? (
@@ -236,7 +243,7 @@ export default function ActiveTripScreen() {
           currentIndex={trip.currentStopIndex}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -264,7 +271,6 @@ const styles = StyleSheet.create({
   // Floating back button
   backBtn: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 48 : 16,
     left: Spacing.lg,
     zIndex: 10,
     backgroundColor: Colors.white,
@@ -282,7 +288,6 @@ const styles = StyleSheet.create({
   // Progress pill — centred top
   progressPill: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 48 : 16,
     alignSelf: 'center',
     zIndex: 10,
     backgroundColor: Colors.primary,
@@ -295,7 +300,6 @@ const styles = StyleSheet.create({
   // Directions loading — top right
   dirLoadingBadge: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 48 : 16,
     right: Spacing.lg,
     zIndex: 10,
     flexDirection: 'row',
@@ -321,7 +325,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: SHEET_HEIGHT,
     justifyContent: 'flex-end',
-    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
   },
 
   // Markers
