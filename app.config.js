@@ -10,6 +10,12 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    // ios/android `config` blocks are stripped from the manifest the app receives,
+    // so expose the key to JS (directions requests) via `extra`.
+    extra: {
+      ...config.extra,
+      googleMapsApiKey,
+    },
     ios: {
       ...config.ios,
       config: {
