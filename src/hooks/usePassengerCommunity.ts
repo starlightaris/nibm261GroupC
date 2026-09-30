@@ -98,15 +98,20 @@ export function usePassengerCommunity(): UsePassengerCommunityResult {
               return;
             }
 
-            const commDoc  = commSnap.docs[0];
-            const commData = commDoc.data();
-            const commId   = commDoc.id;
+            // Older driver-side removals only cleaned members[] and left the
+            // uid in memberIds, so the query can also return communities the
+            // passenger is no longer in. Pick the one that really lists them.
+            const commDoc = commSnap.docs.find((d) =>
+              (d.data().members ?? []).some((m: any) => m.userId === firebaseUser.uid)
+            );
+            const commData = commDoc?.data();
+            const commId   = commDoc?.id;
 
-            const memberEntry = (commData.members ?? []).find(
+            const memberEntry = (commData?.members ?? []).find(
               (m: any) => m.userId === firebaseUser.uid
             );
 
-            if (!memberEntry) {
+            if (!commDoc || !commData || !commId || !memberEntry) {
               setCommunity(null);
               setError(null);
               setLoading(false);

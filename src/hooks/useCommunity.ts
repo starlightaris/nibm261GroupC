@@ -3,7 +3,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  updateDoc,
   onSnapshot,
   query,
   collection,
@@ -12,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../firebaseConfig';
+import { removeCommunityMember } from '@services/communityMembershipService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,13 +163,7 @@ export function useCommunity(): UseCommunityResult {
     if (!community?.id) return;
     setRemoving(userId);
     try {
-      const updatedMembers = community.members
-        .filter((m) => m.userId !== userId)
-        .map(({ initials, ...rest }) => rest);
-
-      await updateDoc(doc(db, 'communities', community.id), {
-        members: updatedMembers,
-      });
+      await removeCommunityMember(community.id, userId);
     } catch (err: any) {
       console.error('[useCommunity] removeMember:', err);
       setError(err?.message ?? 'Failed to remove member.');
