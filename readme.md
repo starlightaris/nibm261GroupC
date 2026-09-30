@@ -1,3 +1,9 @@
+## Setup
+
+Copy `.env.example` to `.env` and fill in the keys (`.env` is gitignored). `GOOGLE_MAPS_API_KEY` is read by `app.config.js` for the native Maps config, so restart Expo with `npx expo start -c` after changing it. For EAS cloud builds, set the same variables as EAS secrets.
+
+Restrict the Google keys in Google Cloud Console (Android package + SHA-1, iOS bundle ID, and API limits) - they are embedded in the built app.
+
 ## Folder Structure (`src`)
 
 ```text
