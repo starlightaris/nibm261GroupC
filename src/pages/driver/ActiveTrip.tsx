@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
   SafeAreaView,
   StatusBar,
 } from 'react-native';
