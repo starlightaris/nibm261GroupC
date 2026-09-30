@@ -16,7 +16,7 @@ import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { updateUserProfile } from '@services/profileService';
-import { submitProfileDetails, type ProfileErrors } from '@utils/profileDetails';
+import { submitProfileDetails, validateProfileDetails, type ProfileErrors } from '@utils/profileDetails';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 
@@ -96,14 +96,17 @@ export default function EditProfile(_props: Props) {
                 setFirstName(value);
                 setSuccessMessage(null);
                 setErrorMessage(null);
-                setFieldErrors((current) => ({ ...current, firstName: undefined }));
+                setFieldErrors((current) => ({
+                  ...current,
+                  firstName: validateProfileDetails({ firstName: value, lastName, phone }).firstName,
+                }));
               }}
               placeholder="e.g. John"
               placeholderTextColor={Colors.muted}
               autoCapitalize="words"
               accessibilityLabel="First name"
             />
-            {fieldErrors.firstName && <Text style={styles.fieldError}>{fieldErrors.firstName}</Text>}
+            {fieldErrors.firstName && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.firstName}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -115,14 +118,17 @@ export default function EditProfile(_props: Props) {
                 setLastName(value);
                 setSuccessMessage(null);
                 setErrorMessage(null);
-                setFieldErrors((current) => ({ ...current, lastName: undefined }));
+                setFieldErrors((current) => ({
+                  ...current,
+                  lastName: validateProfileDetails({ firstName, lastName: value, phone }).lastName,
+                }));
               }}
               placeholder="e.g. Silva"
               placeholderTextColor={Colors.muted}
               autoCapitalize="words"
               accessibilityLabel="Last name"
             />
-            {fieldErrors.lastName && <Text style={styles.fieldError}>{fieldErrors.lastName}</Text>}
+            {fieldErrors.lastName && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.lastName}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -134,14 +140,18 @@ export default function EditProfile(_props: Props) {
                 setPhone(value);
                 setSuccessMessage(null);
                 setErrorMessage(null);
-                setFieldErrors((current) => ({ ...current, phone: undefined }));
+                setFieldErrors((current) => ({
+                  ...current,
+                  phone: validateProfileDetails({ firstName, lastName, phone: value }).phone,
+                }));
               }}
-              placeholder="e.g. 077 123 4567"
+              placeholder="e.g. 0771234567"
               placeholderTextColor={Colors.muted}
-              keyboardType="phone-pad"
+              keyboardType="number-pad"
+              maxLength={10}
               accessibilityLabel="Mobile number"
             />
-            {fieldErrors.phone && <Text style={styles.fieldError}>{fieldErrors.phone}</Text>}
+            {fieldErrors.phone && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.phone}</Text>}
           </View>
 
           <View style={styles.inputGroup}>

@@ -7,38 +7,28 @@ export type ProfileDetailsInput = {
 export type ProfileField = keyof ProfileDetailsInput;
 export type ProfileErrors = Partial<Record<ProfileField, string>>;
 
-export function normalizeProfileDetails(input: ProfileDetailsInput): ProfileDetailsInput {
-  return {
-    firstName: input.firstName.trim().replace(/\s+/g, ' '),
-    lastName: input.lastName.trim().replace(/\s+/g, ' '),
-    phone: input.phone.trim(),
-  };
-}
-
 export function validateProfileDetails(input: ProfileDetailsInput): ProfileErrors {
-  const details = normalizeProfileDetails(input);
   const errors: ProfileErrors = {};
 
-  if (!details.firstName) errors.firstName = 'First name is required.';
-  else if (details.firstName.length > 80) errors.firstName = 'First name must be 80 characters or fewer.';
+  if (!input.firstName.trim()) errors.firstName = 'First name is required.';
+  else if (input.firstName.length > 80) errors.firstName = 'First name must be 80 characters or fewer.';
+  else if (!/^[A-Za-z]+$/.test(input.firstName)) errors.firstName = 'First name must use letters A-Z only, with no spaces or symbols.';
 
-  if (!details.lastName) errors.lastName = 'Last name is required.';
-  else if (details.lastName.length > 80) errors.lastName = 'Last name must be 80 characters or fewer.';
+  if (!input.lastName.trim()) errors.lastName = 'Last name is required.';
+  else if (input.lastName.length > 80) errors.lastName = 'Last name must be 80 characters or fewer.';
+  else if (!/^[A-Za-z]+$/.test(input.lastName)) errors.lastName = 'Last name must use letters A-Z only, with no spaces or symbols.';
 
-  const digits = details.phone.replace(/\D/g, '');
-  if (!details.phone) errors.phone = 'Mobile number is required.';
-  else if (!/^\+?[0-9][0-9\s-]*$/.test(details.phone) || digits.length < 9 || digits.length > 15) {
-    errors.phone = 'Enter a valid mobile number using 9 to 15 digits.';
-  }
+  if (!input.phone.trim()) errors.phone = 'Mobile number is required.';
+  else if (!/^[0-9]+$/.test(input.phone)) errors.phone = 'Mobile number must use digits only.';
+  else if (input.phone.length !== 10) errors.phone = 'Mobile number must be exactly 10 digits.';
 
   return errors;
 }
 
 export function profileUpdateData(input: ProfileDetailsInput, updatedAt: string) {
-  const details = normalizeProfileDetails(input);
   return {
-    ...details,
-    name: `${details.firstName} ${details.lastName}`,
+    ...input,
+    name: `${input.firstName} ${input.lastName}`,
     updatedAt,
   };
 }
