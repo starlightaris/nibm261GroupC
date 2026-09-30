@@ -18,7 +18,6 @@ import { Colors, Radius, Spacing } from '@styles/tokens';
 import { updateUserProfile } from '@services/profileService';
 import {
   fromStoredName,
-  splitFullName,
   submitProfileDetails,
   validateProfileDetails,
   type ProfileErrors,
@@ -29,8 +28,7 @@ type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 export default function EditProfile(_props: Props) {
   const { user, loading: authLoading } = useAuth();
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -39,9 +37,10 @@ export default function EditProfile(_props: Props) {
 
   useEffect(() => {
     if (user) {
-      const nameParts = splitFullName(user.name ?? '');
-      setFirstName(fromStoredName(user.firstName ?? nameParts.firstName));
-      setLastName(fromStoredName(user.lastName ?? nameParts.lastName));
+      setName(
+        user.name ??
+          [user.firstName, user.lastName].map((part) => fromStoredName(part ?? '')).join(' ').trim(),
+      );
       setPhone(user.phone ?? '');
     }
   }, [user]);
@@ -55,7 +54,7 @@ export default function EditProfile(_props: Props) {
     try {
       const errors = await submitProfileDetails(
         user.uid,
-        { firstName, lastName, phone },
+        { name, phone },
         updateUserProfile,
       );
       setFieldErrors(errors);
@@ -94,47 +93,25 @@ export default function EditProfile(_props: Props) {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name</Text>
+            <Text style={styles.label}>Full Name</Text>
             <TextInput
               style={styles.input}
-              value={firstName}
+              value={name}
               onChangeText={(value) => {
-                setFirstName(value);
+                setName(value);
                 setSuccessMessage(null);
                 setErrorMessage(null);
                 setFieldErrors((current) => ({
                   ...current,
-                  firstName: validateProfileDetails({ firstName: value, lastName, phone }).firstName,
+                  name: validateProfileDetails({ name: value, phone }).name,
                 }));
               }}
-              placeholder="e.g. John"
+              placeholder="e.g. Ashan Perera"
               placeholderTextColor={Colors.muted}
               autoCapitalize="words"
-              accessibilityLabel="First name"
+              accessibilityLabel="Full name"
             />
-            {fieldErrors.firstName && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.firstName}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name</Text>
-            <TextInput
-              style={styles.input}
-              value={lastName}
-              onChangeText={(value) => {
-                setLastName(value);
-                setSuccessMessage(null);
-                setErrorMessage(null);
-                setFieldErrors((current) => ({
-                  ...current,
-                  lastName: validateProfileDetails({ firstName, lastName: value, phone }).lastName,
-                }));
-              }}
-              placeholder="e.g. Silva"
-              placeholderTextColor={Colors.muted}
-              autoCapitalize="words"
-              accessibilityLabel="Last name"
-            />
-            {fieldErrors.lastName && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.lastName}</Text>}
+            {fieldErrors.name && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.name}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -148,7 +125,7 @@ export default function EditProfile(_props: Props) {
                 setErrorMessage(null);
                 setFieldErrors((current) => ({
                   ...current,
-                  phone: validateProfileDetails({ firstName, lastName, phone: value }).phone,
+                  phone: validateProfileDetails({ name, phone: value }).phone,
                 }));
               }}
               placeholder="e.g. 0771234567"

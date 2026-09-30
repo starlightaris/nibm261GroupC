@@ -1,6 +1,5 @@
 export type ProfileDetailsInput = {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
 };
 
@@ -37,8 +36,6 @@ function nameError(label: string, value: string): string | undefined {
 }
 
 export function validateFullName(value: string): string | undefined {
-  const name = normalizeName(value);
-  if (name && !name.includes(' ')) return 'Enter your first and last name.';
   return nameError('Name', value);
 }
 
@@ -51,11 +48,8 @@ export function splitFullName(value: string): { firstName: string; lastName: str
 export function validateProfileDetails(input: ProfileDetailsInput): ProfileErrors {
   const errors: ProfileErrors = {};
 
-  const firstName = nameError('First name', input.firstName);
-  if (firstName) errors.firstName = firstName;
-
-  const lastName = nameError('Last name', input.lastName);
-  if (lastName) errors.lastName = lastName;
+  const name = validateFullName(input.name);
+  if (name) errors.name = name;
 
   if (!input.phone.trim()) errors.phone = 'Mobile number is required.';
   else if (!/^[0-9]+$/.test(input.phone)) errors.phone = 'Mobile number must use digits only.';
@@ -65,13 +59,12 @@ export function validateProfileDetails(input: ProfileDetailsInput): ProfileError
 }
 
 export function profileUpdateData(input: ProfileDetailsInput, updatedAt: string) {
-  const firstName = normalizeName(input.firstName);
-  const lastName = normalizeName(input.lastName);
+  const { firstName, lastName } = splitFullName(input.name);
   return {
-    firstName: toStoredName(firstName),
-    lastName: toStoredName(lastName),
+    firstName,
+    lastName,
     phone: input.phone,
-    name: `${firstName} ${lastName}`,
+    name: normalizeName(input.name),
     updatedAt,
   };
 }
