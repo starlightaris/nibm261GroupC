@@ -10,15 +10,13 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from 'firebaseConfig';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { isValidMobile } from '@utils/validation';
+import { updateUserProfile } from '@services/profileService';
+import { submitProfileDetails, type ProfileErrors } from '@utils/profileDetails';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 
@@ -30,6 +28,8 @@ export default function EditProfile(_props: Props) {
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ProfileErrors>({});
 
   useEffect(() => {
     if (user) {
@@ -41,38 +41,24 @@ export default function EditProfile(_props: Props) {
   }, [user]);
 
   const handleSave = async () => {
-    if (!user) return;
-    if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Missing information', 'First name and last name are required.');
-      return;
-    }
-    if (!isValidMobile(phone)) {
-      Alert.alert('Invalid mobile number', 'Enter a valid mobile number using 9 to 15 digits.');
-      return;
-    }
+    if (!user || isSaving) return;
 
     setIsSaving(true);
     setSuccessMessage(null);
+    setErrorMessage(null);
     try {
-      const trimmedFirstName = firstName.trim();
-      const trimmedLastName = lastName.trim();
-      const trimmedPhone = phone.trim();
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        firstName: trimmedFirstName,
-        lastName: trimmedLastName,
-        name: `${trimmedFirstName} ${trimmedLastName}`,
-        phone: trimmedPhone,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      const errors = await submitProfileDetails(
+        user.uid,
+        { firstName, lastName, phone },
+        updateUserProfile,
+      );
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0) return;
 
       setSuccessMessage('Profile updated successfully.');
-      if (Platform.OS !== 'web') {
-        Alert.alert('Success', 'Profile updated successfully.');
-      }
     } catch (err) {
       console.error('Error saving profile:', err);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      setErrorMessage('Failed to save profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -109,12 +95,15 @@ export default function EditProfile(_props: Props) {
               onChangeText={(value) => {
                 setFirstName(value);
                 setSuccessMessage(null);
+                setErrorMessage(null);
+                setFieldErrors((current) => ({ ...current, firstName: undefined }));
               }}
               placeholder="e.g. John"
               placeholderTextColor={Colors.muted}
               autoCapitalize="words"
               accessibilityLabel="First name"
             />
+            {fieldErrors.firstName && <Text style={styles.fieldError}>{fieldErrors.firstName}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -125,12 +114,15 @@ export default function EditProfile(_props: Props) {
               onChangeText={(value) => {
                 setLastName(value);
                 setSuccessMessage(null);
+                setErrorMessage(null);
+                setFieldErrors((current) => ({ ...current, lastName: undefined }));
               }}
               placeholder="e.g. Silva"
               placeholderTextColor={Colors.muted}
               autoCapitalize="words"
               accessibilityLabel="Last name"
             />
+            {fieldErrors.lastName && <Text style={styles.fieldError}>{fieldErrors.lastName}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -141,12 +133,15 @@ export default function EditProfile(_props: Props) {
               onChangeText={(value) => {
                 setPhone(value);
                 setSuccessMessage(null);
+                setErrorMessage(null);
+                setFieldErrors((current) => ({ ...current, phone: undefined }));
               }}
               placeholder="e.g. 077 123 4567"
               placeholderTextColor={Colors.muted}
               keyboardType="phone-pad"
               accessibilityLabel="Mobile number"
             />
+            {fieldErrors.phone && <Text style={styles.fieldError}>{fieldErrors.phone}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -163,6 +158,12 @@ export default function EditProfile(_props: Props) {
           {successMessage && (
             <View style={styles.successBanner} accessibilityRole="alert">
               <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          )}
+
+          {errorMessage && (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           )}
 
@@ -203,6 +204,19 @@ const styles = StyleSheet.create({
   errorText: {
     color: Colors.error,
     fontSize: 16,
+  },
+  fieldError: {
+    color: Colors.error,
+    fontSize: 12,
+    marginTop: Spacing.xs,
+  },
+  errorBanner: {
+    backgroundColor: Colors.errorLight,
+    borderColor: Colors.error,
+    borderWidth: 1,
+    borderRadius: Radius.button,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   inputGroup: {
     marginBottom: Spacing.xl,

@@ -62,7 +62,7 @@ src
 
 ### 🚙 Driver Screens (`pages/driver/`)
 
-* **`Home.tsx`** - Driver's main screen. Shows today's attendance summary for both shifts side by side. Lists confirmed passengers for the active shift. Start Trip button fixed at bottom.
+* **`Home.tsx`** - Driver's main screen. Shows today's live attendance summary for both shifts side by side, lists confirmed passengers for the active shift, and links to Route to start a trip.
 * **`Route.tsx`** - Pre-trip map preview. Shows all confirmed stops plotted on map in optimised order with a stop list below. Becomes the entry point to `ActiveTrip`.
 * **`Community.tsx`** - Manage the driver's community. Lists all members, shows the QR code invite, allows removing passengers.
 * **`ActiveTrip.tsx`** - Full-screen navigation screen. Pushes above the tab navigator so bottom nav hides. Shows live map with stop markers, next passenger card, and Mark as Picked Up button.
