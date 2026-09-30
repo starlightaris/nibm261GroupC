@@ -8,6 +8,8 @@ interface Props {
   done?: boolean;
   /** Override background — used in Community member list */
   backgroundColor?: string;
+  /** Override initials colour — used for purple drop-off avatars */
+  color?: string;
 }
 
 export default function InitialsAvatar({
@@ -15,6 +17,7 @@ export default function InitialsAvatar({
   size = 48,
   done = false,
   backgroundColor,
+  color,
 }: Props) {
   const bg = done ? Colors.border : (backgroundColor ?? Colors.primaryLight);
   return (
@@ -24,7 +27,7 @@ export default function InitialsAvatar({
         { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
       ]}
     >
-      <Text style={[styles.text, { fontSize: size * 0.35 }, done && styles.doneText]}>
+      <Text style={[styles.text, { fontSize: size * 0.35 }, color ? { color } : null, done && styles.doneText]}>
         {initials}
       </Text>
     </View>

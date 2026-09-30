@@ -3,16 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 
 interface Props {
-  total: number;
+  pickups: number;
+  dropoffs: number;
   onDone: () => void;
 }
 
-export default function TripCompleteCard({ total, onDone }: Props) {
+export default function TripCompleteCard({ pickups, dropoffs, onDone }: Props) {
   return (
     <View style={styles.card}>
       <Text style={styles.icon}>🎉</Text>
       <Text style={styles.title}>Trip complete</Text>
-      <Text style={styles.body}>All {total} passengers picked up.</Text>
+      <Text style={styles.body}>{pickups} picked up · {dropoffs} dropped off.</Text>
       <TouchableOpacity style={styles.btn} onPress={onDone} activeOpacity={0.85}>
         <Text style={styles.btnText}>Back to Route</Text>
       </TouchableOpacity>
