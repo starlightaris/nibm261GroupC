@@ -21,6 +21,7 @@ import {
   isStrongPassword,
   passwordStrengthMessage,
 } from '@utils/validation';
+import { normalizeName, validateFullName } from '@utils/profileDetails';
 
 type NavProp = NativeStackNavigationProp<AuthStackParams, 'PassengerSignUp'>;
 
@@ -37,8 +38,9 @@ export default function PassengerSignUpScreen() {
   const [loading,         setLoading]         = useState(false);
 
   const handleSignUp = async () => {
-    if (!name.trim())
-      return Alert.alert('Oops', 'Please enter your name');
+    const nameError = validateFullName(name);
+    if (nameError)
+      return Alert.alert('Oops', nameError);
     if (!isValidMobile(phone))
       return Alert.alert('Oops', 'Please enter a valid mobile number');
     if (!isValidEmail(email))
@@ -50,7 +52,7 @@ export default function PassengerSignUpScreen() {
 
     try {
       setLoading(true);
-      await registerPassenger(email.trim(), password, name.trim(), phone.trim());
+      await registerPassenger(email.trim(), password, normalizeName(name), phone);
       // RootNavigator's onAuthStateChanged fires automatically
       // and swaps to PassengerNavigator — no manual navigate needed
     } catch (err: any) {
@@ -83,6 +85,7 @@ export default function PassengerSignUpScreen() {
             placeholderTextColor="#4A5568"
             value={name}
             onChangeText={setName}
+            autoCapitalize="words"
           />
 
           <Text style={styles.label}>Contact Number</Text>
@@ -92,7 +95,8 @@ export default function PassengerSignUpScreen() {
             placeholderTextColor="#4A5568"
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
+            maxLength={10}
           />
 
           <Text style={styles.label}>Email Address</Text>

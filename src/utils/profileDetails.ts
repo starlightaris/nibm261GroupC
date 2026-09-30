@@ -7,28 +7,71 @@ export type ProfileDetailsInput = {
 export type ProfileField = keyof ProfileDetailsInput;
 export type ProfileErrors = Partial<Record<ProfileField, string>>;
 
+const NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+const NAME_MAX_LENGTH = 80;
+const NAME_RULE = 'letters A-Z only, with single spaces between words';
+
+export function normalizeName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+// Names are kept in Firestore with underscores in place of spaces ("De Silva" -> "De_Silva").
+export function toStoredName(value: string): string {
+  return normalizeName(value).replace(/ /g, '_');
+}
+
+export function fromStoredName(value: string): string {
+  return value.replace(/_/g, ' ');
+}
+
+export function isValidPhone(value: string): boolean {
+  return /^[0-9]{10}$/.test(value);
+}
+
+function nameError(label: string, value: string): string | undefined {
+  const name = normalizeName(value);
+  if (!name) return `${label} is required.`;
+  if (name.length > NAME_MAX_LENGTH) return `${label} must be ${NAME_MAX_LENGTH} characters or fewer.`;
+  if (!NAME_PATTERN.test(name)) return `${label} must use ${NAME_RULE}.`;
+  return undefined;
+}
+
+export function validateFullName(value: string): string | undefined {
+  const name = normalizeName(value);
+  if (name && !name.includes(' ')) return 'Enter your first and last name.';
+  return nameError('Name', value);
+}
+
+// Splits a full name into first word + the rest, both in stored (underscore) form.
+export function splitFullName(value: string): { firstName: string; lastName: string } {
+  const [first = '', ...rest] = normalizeName(value).split(' ');
+  return { firstName: first, lastName: rest.join('_') };
+}
+
 export function validateProfileDetails(input: ProfileDetailsInput): ProfileErrors {
   const errors: ProfileErrors = {};
 
-  if (!input.firstName.trim()) errors.firstName = 'First name is required.';
-  else if (input.firstName.length > 80) errors.firstName = 'First name must be 80 characters or fewer.';
-  else if (!/^[A-Za-z]+$/.test(input.firstName)) errors.firstName = 'First name must use letters A-Z only, with no spaces or symbols.';
+  const firstName = nameError('First name', input.firstName);
+  if (firstName) errors.firstName = firstName;
 
-  if (!input.lastName.trim()) errors.lastName = 'Last name is required.';
-  else if (input.lastName.length > 80) errors.lastName = 'Last name must be 80 characters or fewer.';
-  else if (!/^[A-Za-z]+$/.test(input.lastName)) errors.lastName = 'Last name must use letters A-Z only, with no spaces or symbols.';
+  const lastName = nameError('Last name', input.lastName);
+  if (lastName) errors.lastName = lastName;
 
   if (!input.phone.trim()) errors.phone = 'Mobile number is required.';
   else if (!/^[0-9]+$/.test(input.phone)) errors.phone = 'Mobile number must use digits only.';
-  else if (input.phone.length !== 10) errors.phone = 'Mobile number must be exactly 10 digits.';
+  else if (!isValidPhone(input.phone)) errors.phone = 'Mobile number must be exactly 10 digits.';
 
   return errors;
 }
 
 export function profileUpdateData(input: ProfileDetailsInput, updatedAt: string) {
+  const firstName = normalizeName(input.firstName);
+  const lastName = normalizeName(input.lastName);
   return {
-    ...input,
-    name: `${input.firstName} ${input.lastName}`,
+    firstName: toStoredName(firstName),
+    lastName: toStoredName(lastName),
+    phone: input.phone,
+    name: `${firstName} ${lastName}`,
     updatedAt,
   };
 }

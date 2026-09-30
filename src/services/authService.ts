@@ -8,6 +8,7 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 import { auth, db } from '../../firebaseConfig';
+import { splitFullName } from '../utils/profileDetails';
 
 import {
   AuthUser,
@@ -24,13 +25,6 @@ function generateInviteCode(length = 6): string {
   ).join('');
 }
 
-function splitName(name: string): { firstName: string; lastName: string } {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return {
-    firstName: parts[0] ?? '',
-    lastName: parts.slice(1).join(' '),
-  };
-}
 
 // ─── Passenger ───────────────────────────────────────────────────────────────
 
@@ -41,7 +35,7 @@ export const registerPassenger = async (
   phone: string
 ): Promise<PassengerProfile> => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const { firstName, lastName } = splitName(name);
+  const { firstName, lastName } = splitFullName(name);
 
   const profile: PassengerProfile = {
     uid: cred.user.uid,
@@ -75,7 +69,7 @@ export const registerDriver = async (
   whatsappLink?: string,
 ): Promise<DriverProfile> => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const { firstName, lastName } = splitName(name);
+  const { firstName, lastName } = splitFullName(name);
 
   const profile: DriverProfile = {
     uid: cred.user.uid,

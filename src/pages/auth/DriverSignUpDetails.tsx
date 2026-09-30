@@ -19,6 +19,7 @@ import {
   isStrongPassword,
   passwordStrengthMessage,
 } from '@utils/validation';
+import { normalizeName, validateFullName } from '@utils/profileDetails';
 
 type NavProp = NativeStackNavigationProp<AuthStackParams, 'DriverSignUpDetails'>;
 
@@ -34,8 +35,9 @@ export default function DriverSignUpDetailsScreen() {
   const [showConfirm,     setShowConfirm]     = useState(false);
 
   const handleNext = () => {
-    if (!name.trim())
-      return Alert.alert('Oops', 'Please enter your name');
+    const nameError = validateFullName(name);
+    if (nameError)
+      return Alert.alert('Oops', nameError);
     if (!isValidMobile(phone))
       return Alert.alert('Oops', 'Please enter a valid mobile number');
     if (!isValidEmail(email))
@@ -46,10 +48,10 @@ export default function DriverSignUpDetailsScreen() {
       return Alert.alert('Oops', 'Passwords do not match');
 
     navigation.navigate('DriverSignUpBus', {
-      name:          name.trim(),
+      name:          normalizeName(name),
       email:         email.trim(),
       password,
-      phone:         phone.trim(),
+      phone,
     });
   };
 
@@ -72,6 +74,7 @@ export default function DriverSignUpDetailsScreen() {
             placeholderTextColor="#4A5568"
             value={name}
             onChangeText={setName}
+            autoCapitalize="words"
           />
 
           <Text style={styles.label}>Contact Number</Text>
@@ -81,7 +84,8 @@ export default function DriverSignUpDetailsScreen() {
             placeholderTextColor="#4A5568"
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
+            maxLength={10}
           />
 
           <Text style={styles.label}>Email Address</Text>

@@ -16,7 +16,13 @@ import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { updateUserProfile } from '@services/profileService';
-import { submitProfileDetails, validateProfileDetails, type ProfileErrors } from '@utils/profileDetails';
+import {
+  fromStoredName,
+  splitFullName,
+  submitProfileDetails,
+  validateProfileDetails,
+  type ProfileErrors,
+} from '@utils/profileDetails';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 
@@ -33,9 +39,9 @@ export default function EditProfile(_props: Props) {
 
   useEffect(() => {
     if (user) {
-      const nameParts = (user.name ?? '').trim().split(/\s+/).filter(Boolean);
-      setFirstName(user.firstName ?? nameParts[0] ?? '');
-      setLastName(user.lastName ?? nameParts.slice(1).join(' '));
+      const nameParts = splitFullName(user.name ?? '');
+      setFirstName(fromStoredName(user.firstName ?? nameParts.firstName));
+      setLastName(fromStoredName(user.lastName ?? nameParts.lastName));
       setPhone(user.phone ?? '');
     }
   }, [user]);
