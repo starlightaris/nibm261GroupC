@@ -8,10 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nibm.transportapp",
-      "config": {
-        "googleMapsApiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
-      }
+      "bundleIdentifier": "com.nibm.transportapp"
     },
     "android": {
       "package": "com.nibm.transportapp",
@@ -19,12 +16,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "predictiveBackGestureEnabled": false,
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCm95_zVsHVhzfIwTAqPtCnmuJeIRF9LNo"
-        }
-      }
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
