@@ -15,10 +15,7 @@ import { EmptyRoute, ErrorState } from '@components/driver/route/EmptyRoute';
 
 type RouteNavProp = NativeStackNavigationProp<RootStackParams, 'DriverTabs'>;
 
-const MAPS_API_KEY: string =
-  Constants.expoConfig?.android?.config?.googleMaps?.apiKey ??
-  Constants.expoConfig?.ios?.config?.googleMapsApiKey ??
-  '';
+const MAPS_API_KEY: string = Constants.expoConfig?.extra?.googleMapsApiKey ?? '';
 
 export default function RouteScreen() {
   const navigation = useNavigation<RouteNavProp>();

@@ -182,7 +182,7 @@ export async function fetchLeg(
 interface UseRouteDirectionsParams {
   /** Remaining stops to route through — pass trip.remainingStops */
   remainingStops: RouteStop[];
-  /** Google Maps API key — pass from Constants.expoConfig?.android?.config?.googleMaps?.apiKey */
+  /** Google Maps API key — pass from Constants.expoConfig?.extra?.googleMapsApiKey */
   apiKey: string;
   /** Skip fetching when trip isn't active yet */
   enabled?: boolean;

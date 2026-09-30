@@ -30,12 +30,9 @@ type ActiveTripNavProp = NativeStackNavigationProp<RootStackParams, 'ActiveTrip'
 type ActiveTripRouteProp = RouteProp<RootStackParams, 'ActiveTrip'>;
 
 
-// ─── API key from app.json ────────────────────────────────────────────────────
+// ─── API key from app.config.js (extra) ───────────────────────────────────────
 
-const MAPS_API_KEY: string =
-  Constants.expoConfig?.android?.config?.googleMaps?.apiKey ??
-  Constants.expoConfig?.ios?.config?.googleMapsApiKey ??
-  '';
+const MAPS_API_KEY: string = Constants.expoConfig?.extra?.googleMapsApiKey ?? '';
 
 // ─── Map region helper ────────────────────────────────────────────────────────
 
@@ -169,7 +166,9 @@ export default function ActiveTripScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        // Google tiles on iOS need a dev/standalone build with the key baked in;
+        // they render blank in Expo Go, so iOS uses the default (Apple Maps).
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
         showsUserLocation
         showsMyLocationButton={false}
