@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
-import type { RouteStop } from '@navigation/types';
+import type { TripStop } from '@utils/tripStops';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ export interface DirectionStep {
 }
 
 export interface StopRoute {
-  stop: RouteStop;
+  stop: TripStop;
   polyline: LatLng[];        // decoded points for this leg
   steps: DirectionStep[];    // turn-by-turn for this leg
   etaSeconds: number;        // total duration in seconds
@@ -36,23 +36,28 @@ export interface UseRouteDirectionsResult {
   driverLocation: LatLng | null;
   loading: boolean;
   error: string | null;
-  /** Call after markPickedUp to re-fetch from new position */
+  /** Call after completeStop to re-fetch from new position */
   refresh: () => void;
 }
 
-// ─── Google Maps Directions API base URL ─────────────────────────────────────
-// The API key is read from the Expo config at runtime via a Constants import.
-// We avoid hardcoding it here — instead we accept it as a parameter so the
-// hook is testable and the key stays in app.json / .env only.
+// ─── Google Routes API (v2) ───────────────────────────────────────────────────
+// The legacy Directions API (maps/api/directions/json) is blocked on newer
+// Google Cloud projects — Google now routes new projects to this endpoint
+// instead. Same purpose (road-snapped path + ETA), different request shape:
+// POST with a JSON body and an X-Goog-FieldMask header instead of a GET with
+// query params. The API key is read from the Expo config at runtime via a
+// Constants import — we avoid hardcoding it here, instead accepting it as a
+// parameter so the hook is testable and the key stays in app.json / .env only.
 
-const DIRECTIONS_BASE = 'https://maps.googleapis.com/maps/api/directions/json';
+const ROUTES_API_BASE = 'https://routes.googleapis.com/directions/v2:computeRoutes';
+
+// Only request the cheapest ("Essentials" tier) fields — polyline, duration,
+// distance. Adding per-step turn-by-turn (legs.steps) bumps every request to
+// a pricier billing tier, so we skip it; nextInstruction stays null and the
+// UI already hides that row when it's not present.
+const FIELD_MASK = 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Strip HTML tags from Google's instruction strings */
-function stripHtml(raw: string): string {
-  return raw.replace(/<[^>]*>/g, '').trim();
-}
 
 /** Convert seconds to a human-readable label */
 function formatDuration(seconds: number): string {
@@ -74,7 +79,7 @@ function formatDistance(metres: number): string {
  * Decode a Google Maps encoded polyline string into LatLng array.
  * Algorithm: https://developers.google.com/maps/documentation/utilities/polylinealgorithm
  */
-function decodePolyline(encoded: string): LatLng[] {
+export function decodePolyline(encoded: string): LatLng[] {
   const points: LatLng[] = [];
   let index = 0;
   let lat = 0;
@@ -113,10 +118,10 @@ function decodePolyline(encoded: string): LatLng[] {
 }
 
 /**
- * Fetch one leg: origin → destination.
+ * Fetch one leg: origin → destination, via the Routes API.
  * Returns null on network/API failure so the caller can handle gracefully.
  */
-async function fetchLeg(
+export async function fetchLeg(
   origin: LatLng,
   destination: LatLng,
   apiKey: string
@@ -126,43 +131,58 @@ async function fetchLeg(
   etaSeconds: number;
   distanceMetres: number;
 } | null> {
-  const params = new URLSearchParams({
-    origin: `${origin.latitude},${origin.longitude}`,
-    destination: `${destination.latitude},${destination.longitude}`,
-    mode: 'driving',
-    key: apiKey,
-  });
+  try {
+    const res = await fetch(ROUTES_API_BASE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': FIELD_MASK,
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: origin.latitude, longitude: origin.longitude } } },
+        destination: { location: { latLng: { latitude: destination.latitude, longitude: destination.longitude } } },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_UNAWARE',
+        polylineQuality: 'OVERVIEW',
+      }),
+    });
 
-  const res = await fetch(`${DIRECTIONS_BASE}?${params.toString()}`);
-  if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('[useRouteDirections] Routes API HTTP error', res.status, text);
+      return null;
+    }
 
-  const json = await res.json();
-  if (json.status !== 'OK' || !json.routes?.length) return null;
+    const json = await res.json();
+    const route = json.routes?.[0];
+    if (!route?.polyline?.encodedPolyline) {
+      console.error('[useRouteDirections] unexpected Routes API response', JSON.stringify(json));
+      return null;
+    }
 
-  const leg = json.routes[0].legs[0];
+    // duration comes back as a protobuf Duration string, e.g. "184s"
+    const etaSeconds = parseInt(String(route.duration ?? '0s').replace('s', ''), 10) || 0;
+    const polyline = decodePolyline(route.polyline.encodedPolyline);
 
-  const steps: DirectionStep[] = (leg.steps ?? []).map((s: any) => ({
-    instruction: stripHtml(s.html_instructions ?? ''),
-    distance: s.distance?.text ?? '',
-    duration: s.duration?.text ?? '',
-  }));
-
-  const polyline = decodePolyline(json.routes[0].overview_polyline.points);
-
-  return {
-    polyline,
-    steps,
-    etaSeconds: leg.duration?.value ?? 0,
-    distanceMetres: leg.distance?.value ?? 0,
-  };
+    return {
+      polyline,
+      steps: [], // no turn-by-turn — see FIELD_MASK note above
+      etaSeconds,
+      distanceMetres: route.distanceMeters ?? 0,
+    };
+  } catch (err) {
+    console.error('[useRouteDirections] fetchLeg failed', err);
+    return null;
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseRouteDirectionsParams {
   /** Remaining stops to route through — pass trip.remainingStops */
-  remainingStops: RouteStop[];
-  /** Google Maps API key — pass from Constants.expoConfig?.android?.config?.googleMaps?.apiKey */
+  remainingStops: TripStop[];
+  /** Google Maps API key — pass from Constants.expoConfig?.extra?.googleMapsApiKey */
   apiKey: string;
   /** Skip fetching when trip isn't active yet */
   enabled?: boolean;
@@ -216,7 +236,7 @@ export function useRouteDirections({
         setDriverLocation(origin);
 
         // 2. Build waypoints: driver → stop[0] → stop[1] → ...
-        const waypoints: LatLng[] = [origin, ...stopsRef.current.map((s) => s.pickupLocation)];
+        const waypoints: LatLng[] = [origin, ...stopsRef.current.map((s) => s.location)];
 
         // 3. Fetch each leg concurrently
         const legPromises = waypoints.slice(0, -1).map((wp, i) =>

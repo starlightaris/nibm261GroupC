@@ -1,3 +1,6 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { TripStop } from '@utils/tripStops';
+
 export type Shift = 'morning' | 'evening';
 
 export interface RouteStop {
@@ -37,14 +40,18 @@ export type DriverTabParams = {
 export type PassengerTabParams = {
   PassengerHome:     undefined;
   Track:             undefined;
-  PassengerSettings: undefined;
+  // Typed as a nested navigator param list (not `undefined`) so screens
+  // outside the Settings stack — e.g. passenger Home's "Set Locations"
+  // prompt — can navigate straight into a specific settings screen:
+  // navigation.navigate('PassengerSettings', { screen: 'EditLocations', params: { mode: 'Pickup' } })
+  PassengerSettings: NavigatorScreenParams<SettingsStackParams>;
 };
 
 export type RootStackParams = {
   DriverTabs:    undefined;
   PassengerTabs: undefined;
   ActiveTrip: {
-    stops:       RouteStop[];
+    stops:       TripStop[];
     shift:       Shift;
     communityId: string;
   };
@@ -55,7 +62,6 @@ export type SettingsStackParams = {
   EditProfile:             undefined;
   EditLocations:           { mode: 'Pickup' | 'Drop-off' };
   VehicleDetails:          undefined;
-  ShiftTimes:              undefined;
   NotificationPreferences: undefined;
   TripHistory:             undefined;
 };

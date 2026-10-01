@@ -15,6 +15,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParams } from '../../navigation/types';
 import { loginUser, resetPassword } from '../../services/authService';
+import { Colors, Radius, Spacing } from '../../styles/tokens';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParams, 'Login'>;
@@ -178,7 +179,7 @@ export default function Login({ navigation }: Props) {
 
               placeholder="you@example.com"
 
-              placeholderTextColor="#4A5568"
+              placeholderTextColor={Colors.muted}
 
               keyboardType="email-address"
 
@@ -223,7 +224,7 @@ export default function Login({ navigation }: Props) {
 
                 placeholder="••••••••"
 
-                placeholderTextColor="#4A5568"
+                placeholderTextColor={Colors.muted}
 
                 secureTextEntry={!showPass}
 
@@ -389,298 +390,108 @@ export default function Login({ navigation }: Props) {
 
 
 
-const COLORS = {
-
-  bg:'#0B1120',
-
-  card:'#141E30',
-
-  border:'#1E2D45',
-
-  passenger:'#6C63FF',
-
-  text:'#E2E8F0',
-
-  muted:'#64748B',
-
-  input:'#0F1927',
-
-};
-
-
-
-
+const INPUT_BORDER = '#E2E8F0';
 
 const styles = StyleSheet.create({
-
-
-root:{
-  flex:1,
-  backgroundColor:COLORS.bg
-},
-
-
-scroll:{
-  flexGrow:1,
-  padding:20,
-  paddingTop:60
-},
-
-
-
-header:{
- alignItems:'center',
- marginBottom:32
-},
-
-
-
-logoBox:{
-
- width:72,
- height:72,
- borderRadius:20,
- backgroundColor:'#1A2540',
- justifyContent:'center',
- alignItems:'center',
- marginBottom:12,
- borderWidth:1,
- borderColor:'#2A3A5C'
-
-},
-
-
-
-logoIcon:{
- fontSize:36
-},
-
-
-
-appName:{
- color:COLORS.text,
- fontSize:24,
- fontWeight:'800'
-},
-
-
-
-tagline:{
- color:COLORS.muted,
- marginTop:4
-},
-
-
-
-
-card:{
-
- backgroundColor:COLORS.card,
- borderRadius:24,
- padding:24,
- borderWidth:1,
- borderColor:COLORS.border
-
-},
-
-
-
-
-cardTitle:{
-
- color:COLORS.text,
- fontSize:22,
- fontWeight:'800',
- marginBottom:20
-
-},
-
-
-
-
-roleHint:{
-
- backgroundColor:'#1A1640',
- borderRadius:10,
- padding:12,
- marginBottom:20
-
-},
-
-
-
-roleHintText:{
-
- color:COLORS.muted,
- fontSize:13
-
-},
-
-
-
-
-inputGroup:{
- marginBottom:16
-},
-
-
-
-inputLabel:{
-
- color:COLORS.muted,
- fontSize:12,
- marginBottom:6
-
-},
-
-
-
-
-input:{
-
- backgroundColor:COLORS.input,
- color:COLORS.text,
- borderRadius:12,
- padding:14,
- borderWidth:1,
- borderColor:COLORS.border
-
-},
-
-
-
-
-passRow:{
-
- flexDirection:'row',
- gap:8
-
-},
-
-
-
-eyeBtn:{
-
- backgroundColor:COLORS.input,
- borderWidth:1,
- borderColor:COLORS.border,
- borderRadius:12,
- padding:14
-
-},
-
-
-
-eyeIcon:{
- fontSize:16
-},
-
-
-
-forgotRow:{
-
- alignItems:'flex-end',
- marginBottom:20
-
-},
-
-
-
-forgotText:{
-
- color:COLORS.passenger,
- fontWeight:'600'
-
-},
-
-
-
-
-primaryBtn:{
-
- backgroundColor:COLORS.passenger,
- borderRadius:14,
- padding:16,
- alignItems:'center',
- marginBottom:20
-
-},
-
-
-
-
-primaryBtnText:{
-
- color:'#fff',
- fontWeight:'800',
- fontSize:16
-
-},
-
-
-
-
-divider:{
-
- flexDirection:'row',
- alignItems:'center',
- gap:10,
- marginBottom:16
-
-},
-
-
-
-dividerLine:{
-
- flex:1,
- height:1,
- backgroundColor:COLORS.border
-
-},
-
-
-
-dividerText:{
-
- color:COLORS.muted,
- fontSize:12
-
-},
-
-
-
-
-secondaryBtn:{
-
- borderWidth:1,
- borderColor:COLORS.border,
- borderRadius:14,
- padding:14,
- alignItems:'center'
-
-},
-
-
-
-secondaryBtnText:{
-
- color:COLORS.text,
- fontWeight:'600'
-
-},
-
-
-
-
-footer:{
-
- color:COLORS.muted,
- fontSize:11,
- textAlign:'center',
- marginTop:24
-
-}
-
-
+  root: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flexGrow: 1, padding: Spacing.xl, paddingTop: 60 },
+
+  header: { alignItems: 'center', marginBottom: 32 },
+  logoBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  logoIcon: { fontSize: 36 },
+  appName: { color: Colors.textPrimary, fontSize: 24, fontWeight: '800' },
+  tagline: { color: Colors.textSecondary, marginTop: Spacing.xs },
+
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: Spacing.xl,
+  },
+
+  roleHint: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 10,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  roleHintText: { color: Colors.textSecondary, fontSize: 13 },
+
+  inputGroup: { marginBottom: Spacing.lg },
+  inputLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: Colors.bg,
+    color: Colors.textPrimary,
+    borderRadius: Radius.button,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+  },
+  passRow: { flexDirection: 'row', gap: Spacing.sm },
+  eyeBtn: {
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    borderRadius: Radius.button,
+    padding: 14,
+  },
+  eyeIcon: { fontSize: 16 },
+
+  forgotRow: { alignItems: 'flex-end', marginBottom: Spacing.xl },
+  forgotText: { color: Colors.primary, fontWeight: '600' },
+
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.button,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  primaryBtnText: { color: Colors.white, fontWeight: '800', fontSize: 16 },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: Spacing.lg,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: INPUT_BORDER },
+  dividerText: { color: Colors.muted, fontSize: 12 },
+
+  secondaryBtn: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.button,
+    padding: 14,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { color: Colors.primary, fontWeight: '700' },
+
+  footer: {
+    color: Colors.muted,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: Spacing.xxl,
+  },
 });

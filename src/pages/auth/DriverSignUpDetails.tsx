@@ -13,12 +13,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParams } from '@navigation/types';
+import { Colors, Radius, Spacing } from '@styles/tokens';
 import {
   isValidEmail,
   isValidMobile,
   isStrongPassword,
   passwordStrengthMessage,
 } from '@utils/validation';
+import { normalizeName, validateFullName } from '@utils/profileDetails';
 
 type NavProp = NativeStackNavigationProp<AuthStackParams, 'DriverSignUpDetails'>;
 
@@ -34,8 +36,9 @@ export default function DriverSignUpDetailsScreen() {
   const [showConfirm,     setShowConfirm]     = useState(false);
 
   const handleNext = () => {
-    if (!name.trim())
-      return Alert.alert('Oops', 'Please enter your name');
+    const nameError = validateFullName(name);
+    if (nameError)
+      return Alert.alert('Oops', nameError);
     if (!isValidMobile(phone))
       return Alert.alert('Oops', 'Please enter a valid mobile number');
     if (!isValidEmail(email))
@@ -46,10 +49,10 @@ export default function DriverSignUpDetailsScreen() {
       return Alert.alert('Oops', 'Passwords do not match');
 
     navigation.navigate('DriverSignUpBus', {
-      name:          name.trim(),
+      name:          normalizeName(name),
       email:         email.trim(),
       password,
-      phone:         phone.trim(),
+      phone,
     });
   };
 
@@ -69,26 +72,28 @@ export default function DriverSignUpDetailsScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Kamal Perera"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={name}
             onChangeText={setName}
+            autoCapitalize="words"
           />
 
           <Text style={styles.label}>Contact Number</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g. 0771234567"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
+            maxLength={10}
           />
 
           <Text style={styles.label}>Email Address</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g. kamal@email.com"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -101,7 +106,7 @@ export default function DriverSignUpDetailsScreen() {
             <TextInput
               style={[styles.input, styles.passInput]}
               placeholder="At least 8 characters"
-              placeholderTextColor="#4A5568"
+              placeholderTextColor={Colors.muted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPass}
@@ -116,7 +121,7 @@ export default function DriverSignUpDetailsScreen() {
             <TextInput
               style={[styles.input, styles.passInput]}
               placeholder="Type it again"
-              placeholderTextColor="#4A5568"
+              placeholderTextColor={Colors.muted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirm}
@@ -145,26 +150,23 @@ export default function DriverSignUpDetailsScreen() {
   );
 }
 
-const COLORS = {
-  bg: '#0B1120', card: '#141E30', border: '#1E2D45',
-  accent: '#6C63FF', text: '#E2E8F0', muted: '#64748B', input: '#0F1927',
-};
+const INPUT_BORDER = '#E2E8F0';
 
 const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: COLORS.bg },
-  scroll:      { flexGrow: 1, padding: 20, paddingTop: 60 },
-  appName:     { color: COLORS.text, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  tagline:     { color: COLORS.muted, textAlign: 'center', marginBottom: 32 },
-  card:        { backgroundColor: COLORS.card, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: COLORS.border },
-  label:       { color: COLORS.muted, fontSize: 12, marginBottom: 6, marginTop: 12 },
-  input:       { backgroundColor: COLORS.input, color: COLORS.text, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border },
+  root:        { flex: 1, backgroundColor: Colors.bg },
+  scroll:      { flexGrow: 1, padding: Spacing.xl, paddingTop: 60 },
+  appName:     { color: Colors.textPrimary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  tagline:     { color: Colors.textSecondary, textAlign: 'center', marginBottom: 32 },
+  card:        { backgroundColor: Colors.white, borderRadius: 24, padding: Spacing.xxl, borderWidth: 1, borderColor: Colors.border },
+  label:       { color: Colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+  input:       { backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: Radius.button, padding: 14, borderWidth: 1, borderColor: INPUT_BORDER },
   passRow:     { flexDirection: 'row', gap: 8 },
   passInput:   { flex: 1 },
-  eyeBtn:      { backgroundColor: COLORS.input, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14 },
+  eyeBtn:      { backgroundColor: Colors.bg, borderWidth: 1, borderColor: INPUT_BORDER, borderRadius: Radius.button, padding: 14 },
   eyeIcon:     { fontSize: 16 },
-  btn:         { backgroundColor: COLORS.accent, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 24 },
-  btnText:     { color: '#fff', fontWeight: '800', fontSize: 16 },
-  backBtn:     { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 12 },
-  backBtnText: { color: COLORS.text, fontWeight: '600' },
-  footer:      { color: COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: 24 },
+  btn:         { backgroundColor: Colors.primary, borderRadius: Radius.button, padding: 16, alignItems: 'center', marginTop: 24 },
+  btnText:     { color: Colors.white, fontWeight: '800', fontSize: 16 },
+  backBtn:     { borderWidth: 1, borderColor: INPUT_BORDER, backgroundColor: Colors.white, borderRadius: Radius.button, padding: 14, alignItems: 'center', marginTop: 12 },
+  backBtnText: { color: Colors.textPrimary, fontWeight: '600' },
+  footer:      { color: Colors.muted, fontSize: 11, textAlign: 'center', marginTop: 24 },
 });

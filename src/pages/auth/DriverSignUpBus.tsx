@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { AuthStackParams } from '@navigation/types';
+import { Colors, Radius, Spacing } from '@styles/tokens';
 import { registerDriver } from '@services/authService';
 import { isValidVehicleNumber } from '@utils/validation';
 
@@ -46,13 +47,14 @@ export default function DriverSignUpBusScreen() {
 
       // registerDriver writes users/{uid} + vehicles/{uid} in one call.
       // vehicles/{uid} gets: vehicleName, plateNumber, capacity (default 4),
-      // inviteCode (auto-generated), shiftTimes (defaults 09:00 / 17:00).
+      // inviteCode (auto-generated).
       // routeTags, description, whatsappLink are extra fields we merge in.
       await registerDriver(
         email,
         password,
         name,
         phone,
+        '',
         vehicleType.trim(),
         vehiclePlate.trim().toUpperCase(),
         vehicleName.trim(),
@@ -92,7 +94,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. WP-CAB-1234"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={vehiclePlate}
             onChangeText={setVehiclePlate}
             autoCapitalize="characters"
@@ -102,7 +104,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Morning Shuttle A"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={vehicleName}
             onChangeText={setVehicleName}
           />
@@ -111,7 +113,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Van, Mini Bus, Bus"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={vehicleType}
             onChangeText={setVehicleType}
           />
@@ -120,7 +122,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Tell passengers about your route, timings, or anything useful..."
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -132,7 +134,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. Negombo, Katunayake, Airport"
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={routeTags}
             onChangeText={setRouteTags}
           />
@@ -142,7 +144,7 @@ export default function DriverSignUpBusScreen() {
           <TextInput
             style={styles.input}
             placeholder="https://chat.whatsapp.com/..."
-            placeholderTextColor="#4A5568"
+            placeholderTextColor={Colors.muted}
             value={whatsappLink}
             onChangeText={setWhatsappLink}
             autoCapitalize="none"
@@ -172,27 +174,24 @@ export default function DriverSignUpBusScreen() {
   );
 }
 
-const COLORS = {
-  bg: '#0B1120', card: '#141E30', border: '#1E2D45',
-  accent: '#6C63FF', text: '#E2E8F0', muted: '#64748B', input: '#0F1927',
-};
+const INPUT_BORDER = '#E2E8F0';
 
 const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: COLORS.bg },
-  scroll:      { flexGrow: 1, padding: 20, paddingTop: 60 },
-  appName:     { color: COLORS.text, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  tagline:     { color: COLORS.muted, textAlign: 'center', marginBottom: 32 },
-  card:        { backgroundColor: COLORS.card, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: COLORS.border },
-  label:       { color: COLORS.muted, fontSize: 12, marginBottom: 6, marginTop: 12 },
-  optional:    { color: COLORS.muted, fontStyle: 'italic', fontWeight: '400' },
-  hint:        { color: COLORS.muted, fontSize: 11, marginTop: 4 },
-  input:       { backgroundColor: COLORS.input, color: COLORS.text, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border },
+  root:        { flex: 1, backgroundColor: Colors.bg },
+  scroll:      { flexGrow: 1, padding: Spacing.xl, paddingTop: 60 },
+  appName:     { color: Colors.textPrimary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  tagline:     { color: Colors.textSecondary, textAlign: 'center', marginBottom: 32 },
+  card:        { backgroundColor: Colors.white, borderRadius: 24, padding: Spacing.xxl, borderWidth: 1, borderColor: Colors.border },
+  label:       { color: Colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+  optional:    { color: Colors.muted, fontStyle: 'italic', fontWeight: '400' },
+  hint:        { color: Colors.muted, fontSize: 11, marginTop: 4 },
+  input:       { backgroundColor: Colors.bg, color: Colors.textPrimary, borderRadius: Radius.button, padding: 14, borderWidth: 1, borderColor: INPUT_BORDER },
   textArea:    { minHeight: 100, paddingTop: 14 },
   passRow:     { flexDirection: 'row', gap: 8 },
-  btn:         { backgroundColor: COLORS.accent, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 24 },
+  btn:         { backgroundColor: Colors.primary, borderRadius: Radius.button, padding: 16, alignItems: 'center', marginTop: 24 },
   btnDisabled: { opacity: 0.6 },
-  btnText:     { color: '#fff', fontWeight: '800', fontSize: 16 },
-  backBtn:     { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 12 },
-  backBtnText: { color: COLORS.text, fontWeight: '600' },
-  footer:      { color: COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: 24 },
+  btnText:     { color: Colors.white, fontWeight: '800', fontSize: 16 },
+  backBtn:     { borderWidth: 1, borderColor: INPUT_BORDER, backgroundColor: Colors.white, borderRadius: Radius.button, padding: 14, alignItems: 'center', marginTop: 12 },
+  backBtnText: { color: Colors.textPrimary, fontWeight: '600' },
+  footer:      { color: Colors.muted, fontSize: 11, textAlign: 'center', marginTop: 24 },
 });

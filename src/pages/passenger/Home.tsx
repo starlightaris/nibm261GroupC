@@ -1,295 +1,180 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { ShiftType, AttendanceStatus } from '../../types/attendance';
-import { fetchAttendance, updateAttendance, getCommunityIdForUser } from '../../services/attendanceService';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@config/firebaseConfig';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+} from 'react-native';
+import { usePassengerCommunity } from '@hooks/usePassengerCommunity';
+import { useJoinCommunity }      from '@hooks/useJoinCommunity';
+import { useAttendance }         from '@hooks/useAttendance';
+import { Colors, Radius, Spacing } from '@styles/tokens';
+import JoinCommunityCard  from '@components/passenger/home/JoinCommunityCard';
+import CommunityInfoCard  from '@components/passenger/home/CommunityInfoCard';
+import AttendanceCard     from '@components/passenger/home/AttendanceCard';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { PassengerTabParams, SettingsStackParams } from '@navigation/types';
 
-const formatShiftTime = (timeStr?: string): string => {
-  if (!timeStr) return 'Not set';
-  const [hours, minutes] = timeStr.split(':');
-  if (!hours || !minutes) return timeStr;
-  const h = parseInt(hours, 10);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const displayH = h % 12 || 12;
-  return `${displayH}:${minutes} ${ampm}`;
-};
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<PassengerTabParams, 'PassengerHome'>,
+  NativeStackScreenProps<SettingsStackParams>
+>;
 
-/**
- * Attendance Component
- * 
- * Provides a mobile-first UI for passengers to mark their attendance (present/absent)
- * for morning and evening shifts. Connects to the attendanceService for data persistence.
- */
-export default function PassengerHome() {
-  const [passengerId, setPassengerId] = useState<string | null>(null);
-  const today = new Date().toISOString().split('T')[0];
-  const [morningStatus, setMorningStatus] = useState<AttendanceStatus>('unmarked');
-  const [eveningStatus, setEveningStatus] = useState<AttendanceStatus>('unmarked');
-  const [morningUpdatedAt, setMorningUpdatedAt] = useState<string | null>(null);
-  const [eveningUpdatedAt, setEveningUpdatedAt] = useState<string | null>(null);
-  const [morningCutoff, setMorningCutoff] = useState<string>('Loading...');
-  const [eveningCutoff, setEveningCutoff] = useState<string>('Loading...');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export default function PassengerHomeScreen({ navigation }: Props) {
+  const {
+    community,
+    joined,
+    hasLocations,
+    loading: communityLoading,
+    error:   communityError,
+  } = usePassengerCommunity();
 
-  const formatDateTime = (isoString: string | null | undefined): string => {
-    if (!isoString) return 'Not marked yet';
-    const d = new Date(isoString);
-    return d.toLocaleString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  const { joining, error: joinError, join } = useJoinCommunity();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user?.uid) {
-        setPassengerId(user.uid);
-      } else {
-        setPassengerId(null);
-      }
-    });
+  const {
+    attendance,
+    marking,
+    error: attendanceError,
+    mark,
+  } = useAttendance(community?.communityId ?? null);
 
-    return unsubscribe;
-  }, []);
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (communityLoading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
-  useEffect(() => {
-    if (!passengerId) return;
-
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const data = await fetchAttendance(passengerId, today);
-        setMorningStatus(data.morningShift);
-        setEveningStatus(data.eveningShift);
-        setMorningUpdatedAt(data.morningMarkedAt);
-        setEveningUpdatedAt(data.eveningMarkedAt);
-
-        const communityId = await getCommunityIdForUser(passengerId);
-        if (communityId && communityId !== 'default') {
-          const vehicleSnap = await getDoc(doc(db, 'vehicles', communityId));
-          if (vehicleSnap.exists()) {
-            const vData = vehicleSnap.data();
-            const shiftTimes = vData.shiftTimes;
-            if (shiftTimes) {
-              setMorningCutoff(formatShiftTime(shiftTimes.morningCutoff) || 'Not set');
-              setEveningCutoff(formatShiftTime(shiftTimes.eveningCutoff) || 'Not set');
-            } else {
-              setMorningCutoff('Not set');
-              setEveningCutoff('Not set');
-            }
-          } else {
-            setMorningCutoff('Not set');
-            setEveningCutoff('Not set');
-          }
-        } else {
-          setMorningCutoff('Not set');
-          setEveningCutoff('Not set');
-        }
-      } catch (err) {
-        console.error('Error loading data:', err);
-        setMorningCutoff('Error loading');
-        setEveningCutoff('Error loading');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [passengerId, today]);
-
-  const handleToggle = async (shift: ShiftType, status: AttendanceStatus) => {
-    if (!passengerId) {
-      Alert.alert('Error', 'You must be logged in to mark attendance.');
-      return;
-    }
-    try {
-      setIsLoading(true);
-      await updateAttendance(passengerId, today, shift, status);
-      const nowStr = new Date().toISOString();
-      if (shift === 'morning') {
-        setMorningStatus(status);
-        setMorningUpdatedAt(nowStr);
-      }
-      if (shift === 'evening') {
-        setEveningStatus(status);
-        setEveningUpdatedAt(nowStr);
-      }
-      Alert.alert('Success', 'Attendance saved successfully.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save attendance. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const greeting = getGreeting();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.headerTitle}>Attendance Dashboard</Text>
-        
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#12A14B" />
-          </View>
-        ) : (
-          <>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Morning Shift</Text>
-                <Text style={styles.cutoffText}>Cutoff: {morningCutoff}</Text>
-              </View>
-              <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>Status: <Text style={styles.statusValue}>{morningStatus.charAt(0).toUpperCase() + morningStatus.slice(1)}</Text></Text>
-                <Text style={styles.updatedText}>Last updated: {formatDateTime(morningUpdatedAt)}</Text>
-              </View>
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity 
-              style={[styles.button, morningStatus === 'present' && styles.buttonActivePresent]}
-              onPress={() => handleToggle('morning', 'present')}
-            >
-              <Text style={[styles.buttonText, morningStatus === 'present' && styles.buttonTextActive]}>Present</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, morningStatus === 'absent' && styles.buttonActiveAbsent]}
-              onPress={() => handleToggle('morning', 'absent')}
-            >
-              <Text style={[styles.buttonText, morningStatus === 'absent' && styles.buttonTextActive]}>Absent</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+    <SafeAreaView style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Evening Shift</Text>
-            <Text style={styles.cutoffText}>Cutoff: {eveningCutoff}</Text>
-          </View>
-          <View style={styles.statusInfo}>
-            <Text style={styles.statusLabel}>Status: <Text style={styles.statusValue}>{eveningStatus.charAt(0).toUpperCase() + eveningStatus.slice(1)}</Text></Text>
-            <Text style={styles.updatedText}>Last updated: {formatDateTime(eveningUpdatedAt)}</Text>
-          </View>
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity 
-              style={[styles.button, eveningStatus === 'present' && styles.buttonActivePresent]}
-              onPress={() => handleToggle('evening', 'present')}
-            >
-              <Text style={[styles.buttonText, eveningStatus === 'present' && styles.buttonTextActive]}>Present</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, eveningStatus === 'absent' && styles.buttonActiveAbsent]}
-              onPress={() => handleToggle('evening', 'absent')}
-            >
-              <Text style={[styles.buttonText, eveningStatus === 'absent' && styles.buttonTextActive]}>Absent</Text>
-            </TouchableOpacity>
-          </View>
-            </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>{greeting}</Text>
+        <Text style={styles.headerTitle}>
+          {joined ? community?.member.name ?? 'Passenger' : 'Welcome'}
+        </Text>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── State A: not joined ─────────────────────────────────────────── */}
+        {!joined && (
+          <JoinCommunityCard
+            joining={joining}
+            error={joinError}
+            onJoin={join}
+          />
+        )}
+
+        {/* ── State B + C: joined ─────────────────────────────────────────── */}
+        {joined && community && (
+          <>
+            <CommunityInfoCard
+              community={community}
+              hasLocations={hasLocations}
+              onSetLocations={() => {
+                navigation.navigate('PassengerSettings', {
+                  screen: 'EditLocations',
+                  params: { mode: 'Pickup' },
+                });
+              }}
+            />
+
+            {/* Only show attendance once locations are set */}
+            {hasLocations && (
+              <>
+                <SectionGap label="Attendance" />
+                {attendanceError && (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>⚠️  {attendanceError}</Text>
+                  </View>
+                )}
+                <AttendanceCard
+                  attendance={attendance}
+                  marking={marking}
+                  onMark={mark}
+                />
+              </>
+            )}
           </>
         )}
-      </View>
+
+        {communityError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>⚠️  {communityError}</Text>
+          </View>
+        )}
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
     </SafeAreaView>
   );
-};
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function SectionGap({ label }: { label: string }) {
+  return (
+    <View style={gapStyles.wrap}>
+      <Text style={gapStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+const gapStyles = StyleSheet.create({
+  wrap:  { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, paddingBottom: Spacing.sm },
+  label: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+});
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  root:     { flex: 1, backgroundColor: Colors.bg },
+  centered: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
+
+  header: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Platform.OS === 'android' ? Spacing.lg : Spacing.sm,
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  container: {
-    flex: 1,
-    padding: 20,
+  greeting:    { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.textPrimary, marginTop: 2 },
+
+  scroll:        { flex: 1 },
+  scrollContent: { paddingTop: Spacing.lg },
+
+  errorBanner: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    backgroundColor: '#FEF2F2',
+    borderRadius: Radius.button,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cutoffText: {
-    fontSize: 14,
-    color: '#ef4444',
-    fontWeight: '500',
-  },
-  statusInfo: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-  },
-  statusLabel: {
-    fontSize: 15,
-    color: '#475569',
-    marginBottom: 4,
-  },
-  statusValue: {
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  updatedText: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonActivePresent: {
-    backgroundColor: '#12A14B',
-    borderColor: '#12A14B',
-  },
-  buttonActiveAbsent: {
-    backgroundColor: '#64748b',
-    borderColor: '#64748b',
-  },
-  buttonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#64748b',
-  },
-  buttonTextActive: {
-    color: '#ffffff',
-  },
+  errorBannerText: { fontSize: 13, color: Colors.error, fontWeight: '500' },
 });

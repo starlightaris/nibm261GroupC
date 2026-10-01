@@ -1,12 +1,22 @@
 export type UserRole = 'passenger' | 'driver';
 
+export interface Location {
+  address: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface AuthUser {
   uid: string;
   email: string;
   role: UserRole;
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
   createdAt: string;
+  pickupLocation?: Location;
+  dropoffLocation?: Location;
 }
 
 export interface DriverProfile extends AuthUser {

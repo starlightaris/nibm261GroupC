@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-native",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@styles/*": ["src/styles/*"],
@@ -14,7 +15,6 @@
       "@store/*": ["src/store/*"],
       "@types/*": ["src/types/*"],
       "@constants/*": ["src/constants/*"],
-      "@config/*": ["*"],
       "@utils/*": ["src/utils/*"]
     }
   }

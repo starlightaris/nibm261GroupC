@@ -8,11 +8,13 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SettingsStackParams } from '@navigation/types';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { SettingsStackParams, PassengerTabParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
+import { usePassengerCommunity } from '@hooks/usePassengerCommunity';
+import { useLeaveCommunity } from '@hooks/useLeaveCommunity';
 import { logoutUser } from '@services/authService';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import InitialsAvatar from '@components/driver/activetrip/InitialsAvatar';
@@ -22,23 +24,51 @@ type Props = NativeStackScreenProps<SettingsStackParams, 'SettingsHome'>;
 
 export default function SettingsHome({ navigation }: Props) {
   const { user, loading } = useAuth();
+  // Location sublabels live on communities.members[], not users/{uid} —
+  // this is a no-op query for drivers (they're never in memberIds).
+  const { community, loading: communityLoading } = usePassengerCommunity();
+  const { leaving, leave } = useLeaveCommunity();
 
-  const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('You will need to sign in again to continue. Log out?');
-      if (confirmed) {
-        await logoutUser();
-      }
-    } else {
-      Alert.alert('Log out?', 'You will need to sign in again to continue.', [
-        { text: 'Cancel', style: 'cancel' },
+  // Passenger Home is the default landing for a passenger with no community
+  // (it renders the join card), so send them there once they've left.
+  const goToPassengerHome = () =>
+    navigation
+      .getParent<BottomTabNavigationProp<PassengerTabParams>>()
+      ?.navigate('PassengerHome');
+
+  const handleLeaveCommunity = () => {
+    if (!community || leaving) return;
+
+    Alert.alert(
+      'Leave community?',
+      `You will be removed from ${community.vehicleName || `${community.driverName}'s community`} and your driver will no longer see your pickup or drop-off. You can rejoin later with an invite code.`,
+      [
+        { text: 'Stay', style: 'cancel' },
         {
-          text: 'Log out',
+          text: 'Leave',
           style: 'destructive',
-          onPress: () => logoutUser(),
+          onPress: async () => {
+            const left = await leave(community.communityId);
+            if (left) {
+              goToPassengerHome();
+            } else {
+              Alert.alert('Could not leave', 'Something went wrong. Please try again.');
+            }
+          },
         },
-      ]);
-    }
+      ]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Log out?', 'You will need to sign in again to continue.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: () => logoutUser(),
+      },
+    ]);
   };
 
   if (loading || !user) {
@@ -69,6 +99,9 @@ export default function SettingsHome({ navigation }: Props) {
           style={styles.profileCard}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('EditProfile')}
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+          accessibilityHint="Opens your personal details"
         >
           <InitialsAvatar initials={initials} size={48} />
           <View style={styles.profileText}>
@@ -86,23 +119,17 @@ export default function SettingsHome({ navigation }: Props) {
         </Text>
         <View style={styles.card}>
           {isDriver ? (
-            <>
-              <SettingsRow
-                icon="🚌"
-                label="Vehicle details"
-                onPress={() => navigation.navigate('VehicleDetails')}
-              />
-              <SettingsRow
-                icon="⏰"
-                label="Shift times"
-                onPress={() => navigation.navigate('ShiftTimes')}
-              />
-            </>
-          ) : (
+            <SettingsRow
+              icon="🚌"
+              label="Vehicle details"
+              onPress={() => navigation.navigate('VehicleDetails')}
+            />
+          ) : community ? (
             <>
               <SettingsRow
                 icon="📍"
                 label="Pickup location"
+                subLabel={community.member.pickupLocation?.address || 'Not set yet'}
                 onPress={() =>
                   navigation.navigate('EditLocations', { mode: 'Pickup' })
                 }
@@ -110,11 +137,31 @@ export default function SettingsHome({ navigation }: Props) {
               <SettingsRow
                 icon="🏁"
                 label="Drop-off location"
+                subLabel={community.member.dropoffLocation?.address || 'Not set yet'}
                 onPress={() =>
                   navigation.navigate('EditLocations', { mode: 'Drop-off' })
                 }
               />
+              <SettingsRow
+                icon="👋"
+                label={leaving ? 'Leaving community…' : 'Leave community'}
+                onPress={handleLeaveCommunity}
+                destructive
+                showChevron={false}
+              />
             </>
+          ) : (
+            // Locations belong to a community, so there's nothing to edit
+            // until the passenger joins one (skip while it's still loading
+            // so this doesn't flash for members).
+            !communityLoading && (
+              <SettingsRow
+                icon="🚌"
+                label="Join a community"
+                subLabel="Enter your driver's invite code"
+                onPress={goToPassengerHome}
+              />
+            )
           )}
         </View>
 

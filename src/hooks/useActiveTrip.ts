@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
-import {collection, doc, addDoc, updateDoc, query, where, getDocs, serverTimestamp,} from 'firebase/firestore';
+import {collection, doc, addDoc, updateDoc, query, where, getDocs,} from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 import { RouteStop, Shift } from '@hooks/useDriverRoute';
+import type { TripStop } from '@utils/tripStops';
 
 // Types
 
@@ -12,29 +13,38 @@ export interface ActiveTripState {
   status: TripStatus;
   currentStopIndex: number;
   /** Stops remaining (from currentStopIndex onward) */
-  remainingStops: RouteStop[];
-  /** Passengers already picked up */
-  completedStops: RouteStop[];
+  remainingStops: TripStop[];
+  /** Stops already completed */
+  completedStops: TripStop[];
   /** The next stop the driver is heading to */
-  nextStop: RouteStop | null;
+  nextStop: TripStop | null;
   /** All stops passed in from Route screen */
-  allStops: RouteStop[];
+  allStops: TripStop[];
+}
+
+/** One completed stop, as stored in trips/{id}.completedStops */
+export interface CompletedStopLogEntry {
+  stopId: string;
+  completedAt: string;
+  location: { latitude: number; longitude: number };
+  droppedOff: { userId: string; name: string }[];
+  pickedUp: { userId: string; name: string }[];
 }
 
 export interface UseActiveTripResult {
   trip: ActiveTripState;
   loading: boolean;
   error: string | null;
-  /** Call once when driver taps "Start Trip" — creates the trips/ doc */
+  /** Call once when the trip screen opens — creates (or resumes) the trips/ doc */
   startTrip: (params: StartTripParams) => Promise<void>;
-  /** Advance to next stop; marks current passenger as picked up */
-  markPickedUp: () => Promise<void>;
-  /** End the trip after the last stop */
+  /** Complete the current stop (drop-offs and pickups there) and advance */
+  completeStop: () => Promise<void>;
+  /** End the trip early */
   endTrip: () => Promise<void>;
 }
 
 export interface StartTripParams {
-  stops: RouteStop[];
+  stops: TripStop[];
   shift: Shift;
   communityId: string;
 }
@@ -47,7 +57,7 @@ function getTodayString(): string {
 }
 
 function buildTripState(
-  stops: RouteStop[],
+  stops: TripStop[],
   currentIndex: number,
   tripId: string | null,
   status: TripStatus
@@ -61,6 +71,10 @@ function buildTripState(
     completedStops: stops.slice(0, currentIndex),
     nextStop: stops[currentIndex] ?? null,
   };
+}
+
+function toPerson(p: RouteStop) {
+  return { userId: p.userId, name: p.name };
 }
 
 const INITIAL_STATE: ActiveTripState = {
@@ -84,6 +98,10 @@ export function useActiveTrip(): UseActiveTripResult {
   // without stale-closure issues
   const tripRef = useRef(trip);
   tripRef.current = trip;
+
+  // Mirror of trips/{id}.completedStops. Appended to locally and written back
+  // whole, so earlier entries (and their timestamps) are never overwritten.
+  const logRef = useRef<CompletedStopLogEntry[]>([]);
 
   // startTrip
 
@@ -121,8 +139,10 @@ export function useActiveTrip(): UseActiveTripResult {
         const existingDoc = existingSnap.docs[0];
         tripId = existingDoc.id;
         const existingData = existingDoc.data();
-        const resumeIndex: number = existingData.stops?.length ?? 0;
+        const log: CompletedStopLogEntry[] = existingData.completedStops ?? [];
+        const resumeIndex = Math.min(log.length, stops.length);
 
+        logRef.current = log;
         await updateDoc(doc(db, 'trips', tripId), { status: 'active' });
 
         setTrip(buildTripState(stops, resumeIndex, tripId, 'active'));
@@ -136,10 +156,11 @@ export function useActiveTrip(): UseActiveTripResult {
           status: 'active',
           startedAt: new Date().toISOString(),
           endedAt: null,
-          stops: [], // filled incrementally as passengers are picked up
+          completedStops: [], // appended to as each stop is completed
         });
         tripId = tripDoc.id;
 
+        logRef.current = [];
         setTrip(buildTripState(stops, 0, tripId, 'active'));
       }
     } catch (err: any) {
@@ -150,9 +171,9 @@ export function useActiveTrip(): UseActiveTripResult {
     }
   }, []);
 
-  // markPickedUp
+  // completeStop
 
-  const markPickedUp = useCallback(async () => {
+  const completeStop = useCallback(async () => {
     const current = tripRef.current;
     if (!current.tripId || !current.nextStop) return;
     if (current.status !== 'active') return;
@@ -161,36 +182,31 @@ export function useActiveTrip(): UseActiveTripResult {
     setError(null);
 
     try {
-      const pickedUpStop = current.nextStop;
+      const stop = current.nextStop;
       const nextIndex = current.currentStopIndex + 1;
       const isLast = nextIndex >= current.allStops.length;
 
-      // Append to the stops[] array in Firestore using arrayUnion equivalent
-      // (arrayUnion doesn't preserve order reliably for objects, so we fetch
-      //  and rewrite the full array — trips docs are small so this is safe)
-      const updatedStops = [
-        ...current.completedStops.map((s) => ({
-          userId: s.userId,
-          name: s.name,
-          pickedUpAt: null, // already written in previous calls
-        })),
-        {
-          userId: pickedUpStop.userId,
-          name: pickedUpStop.name,
-          pickedUpAt: new Date().toISOString(),
-        },
-      ];
+      const entry: CompletedStopLogEntry = {
+        stopId: stop.id,
+        completedAt: new Date().toISOString(),
+        location: stop.location,
+        droppedOff: stop.dropoffs.map(toPerson),
+        pickedUp: stop.pickups.map(toPerson),
+      };
+      const updatedLog = [...logRef.current, entry];
 
       await updateDoc(doc(db, 'trips', current.tripId), {
-        stops: updatedStops,
-        ...(isLast ? { status: 'completed', endedAt: new Date().toISOString() } : {}),
+        completedStops: updatedLog,
+        ...(isLast ? { status: 'completed', endedAt: entry.completedAt } : {}),
       });
+
+      logRef.current = updatedLog;
 
       const newStatus: TripStatus = isLast ? 'completed' : 'active';
       setTrip(buildTripState(current.allStops, nextIndex, current.tripId, newStatus));
     } catch (err: any) {
-      console.error('[useActiveTrip] markPickedUp:', err);
-      setError(err?.message ?? 'Failed to mark passenger as picked up.');
+      console.error('[useActiveTrip] completeStop:', err);
+      setError(err?.message ?? 'Failed to complete stop.');
     } finally {
       setLoading(false);
     }
@@ -220,5 +236,5 @@ export function useActiveTrip(): UseActiveTripResult {
     }
   }, []);
 
-  return { trip, loading, error, startTrip, markPickedUp, endTrip };
+  return { trip, loading, error, startTrip, completeStop, endTrip };
 }

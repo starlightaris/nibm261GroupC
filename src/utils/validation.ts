@@ -1,10 +1,11 @@
+import { isValidPhone } from './profileDetails';
+
 // Checks correct email prompt
 export const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-// Checks phone number
-export const isValidMobile = (mobile: string): boolean =>
-  /^[0-9]{9,15}$/.test(mobile.replace(/[\s+-]/g, ''));
+// Checks phone number (exactly 10 digits, same rule as Edit Profile)
+export const isValidMobile = (mobile: string): boolean => isValidPhone(mobile);
 
 // Checks vehicle number
 export const isValidVehicleNumber = (value: string): boolean =>

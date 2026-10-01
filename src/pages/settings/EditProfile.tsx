@@ -10,53 +10,60 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@config/firebaseConfig';
 import { Colors, Radius, Spacing } from '@styles/tokens';
+import { updateUserProfile } from '@services/profileService';
+import {
+  fromStoredName,
+  submitProfileDetails,
+  validateProfileDetails,
+  type ProfileErrors,
+} from '@utils/profileDetails';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditProfile'>;
 
-export default function EditProfile({ navigation }: Props) {
+export default function EditProfile(_props: Props) {
   const { user, loading: authLoading } = useAuth();
-  
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ProfileErrors>({});
 
-  // Initialize fields once user is loaded
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
-      setPhone(user.phone || (user as any).mobile || '');
+      setName(
+        user.name ??
+          [user.firstName, user.lastName].map((part) => fromStoredName(part ?? '')).join(' ').trim(),
+      );
+      setPhone(user.phone ?? '');
     }
   }, [user]);
 
   const handleSave = async () => {
-    if (!user) return;
-    if (!name.trim()) {
-      Alert.alert('Missing Info', 'Name cannot be empty.');
-      return;
-    }
+    if (!user || isSaving) return;
 
     setIsSaving(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        name: name.trim(),
-        phone: phone.trim(),
-      }, { merge: true });
-      
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      const errors = await submitProfileDetails(
+        user.uid,
+        { name, phone },
+        updateUserProfile,
+      );
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0) return;
+
+      setSuccessMessage('Profile updated successfully.');
     } catch (err) {
       console.error('Error saving profile:', err);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      setErrorMessage('Failed to save profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -85,28 +92,49 @@ export default function EditProfile({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput
               style={styles.input}
               value={name}
-              onChangeText={setName}
-              placeholder="e.g. John Doe"
+              onChangeText={(value) => {
+                setName(value);
+                setSuccessMessage(null);
+                setErrorMessage(null);
+                setFieldErrors((current) => ({
+                  ...current,
+                  name: validateProfileDetails({ name: value, phone }).name,
+                }));
+              }}
+              placeholder="e.g. Ashan Perera"
               placeholderTextColor={Colors.muted}
+              autoCapitalize="words"
+              accessibilityLabel="Full name"
             />
+            {fieldErrors.name && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.name}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>Mobile Number</Text>
             <TextInput
               style={styles.input}
               value={phone}
-              onChangeText={setPhone}
-              placeholder="e.g. 077 123 4567"
+              onChangeText={(value) => {
+                setPhone(value);
+                setSuccessMessage(null);
+                setErrorMessage(null);
+                setFieldErrors((current) => ({
+                  ...current,
+                  phone: validateProfileDetails({ name, phone: value }).phone,
+                }));
+              }}
+              placeholder="e.g. 0771234567"
               placeholderTextColor={Colors.muted}
-              keyboardType="phone-pad"
+              keyboardType="number-pad"
+              maxLength={10}
+              accessibilityLabel="Mobile number"
             />
+            {fieldErrors.phone && <Text style={styles.fieldError} accessibilityLiveRegion="polite">{fieldErrors.phone}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -115,14 +143,29 @@ export default function EditProfile({ navigation }: Props) {
               style={[styles.input, styles.inputDisabled]}
               value={user.email}
               editable={false}
+              accessibilityLabel="Email address, read only"
             />
             <Text style={styles.helpText}>Email cannot be changed.</Text>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]} 
+          {successMessage && (
+            <View style={styles.successBanner} accessibilityRole="alert">
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          )}
+
+          {errorMessage && (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
             onPress={handleSave}
             disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile changes"
           >
             {isSaving ? (
               <ActivityIndicator color={Colors.white} />
@@ -155,6 +198,19 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 16,
   },
+  fieldError: {
+    color: Colors.error,
+    fontSize: 12,
+    marginTop: Spacing.xs,
+  },
+  errorBanner: {
+    backgroundColor: Colors.errorLight,
+    borderColor: Colors.error,
+    borderWidth: 1,
+    borderRadius: Radius.button,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
   inputGroup: {
     marginBottom: Spacing.xl,
   },
@@ -181,6 +237,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.muted,
     marginTop: 4,
+  },
+  successBanner: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+    borderWidth: 1,
+    borderRadius: Radius.button,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  successText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   saveBtn: {
     backgroundColor: Colors.primary,

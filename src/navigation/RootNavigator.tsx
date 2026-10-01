@@ -3,7 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@config/firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
 
 import Login               from '@pages/auth/Login';
 import RoleSelect          from '@pages/auth/RoleSelect';
@@ -74,43 +74,14 @@ export default function RootNavigator() {
         return;
       }
       try {
-        let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
-        let userData = userDocSnap.exists() ? userDocSnap.data() : null;
-        let userRole = userData?.role?.toLowerCase()?.trim();
-
-        // Fallback: Check if they are in the 'passengers' collection
-        if (!userData) {
-          const passengerSnap = await getDoc(doc(db, 'passengers', firebaseUser.uid));
-          if (passengerSnap.exists()) {
-            userData = passengerSnap.data();
-            userRole = 'passenger';
-            console.log("Found user in 'passengers' fallback collection.");
-          }
-        }
-
-        // Fallback: Check if they are in the 'vehicles' collection (which acts as drivers)
-        if (!userData) {
-          const vehicleSnap = await getDoc(doc(db, 'vehicles', firebaseUser.uid));
-          if (vehicleSnap.exists()) {
-            userData = vehicleSnap.data();
-            userRole = 'driver';
-            console.log("Found user in 'vehicles' fallback collection.");
-          }
-        }
-
-        if (userRole === 'passenger' || userRole === 'driver') {
-          setRole(userRole as UserRole);
-        } else {
-          setRole(null);
-        }
-      } catch (err) {
-        console.error('Error loading user role:', err);
+        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+        setRole(snap.exists() ? (snap.data().role as UserRole) : null);
+      } catch {
         setRole(null);
       } finally {
         setLoading(false);
       }
     });
-
     return unsub;
   }, []);
 
