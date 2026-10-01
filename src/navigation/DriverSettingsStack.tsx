@@ -5,6 +5,7 @@ import EditProfile     from '@pages/settings/EditProfile';
 import VehicleDetails  from '@pages/settings/VehicleDetails';
 import NotifPrefs      from '@pages/settings/NotificationPrefs';
 import TripHistory     from '@pages/settings/TripHistory';
+import TripSummary     from '@pages/settings/TripSummary';
 
 import type { SettingsStackParams } from '@navigation/types';
 
@@ -27,6 +28,7 @@ export default function DriverSettingsStack() {
       <Stack.Screen name="VehicleDetails"          component={VehicleDetails} options={{ title: 'Vehicle details' }} />
       <Stack.Screen name="NotificationPreferences" component={NotifPrefs}     options={{ title: 'Notifications' }} />
       <Stack.Screen name="TripHistory"             component={TripHistory}    options={{ title: 'Trip history' }} />
+      <Stack.Screen name="TripSummary"             component={TripSummary}    options={{ title: 'Trip summary' }} />
     </Stack.Navigator>
   );
 }
