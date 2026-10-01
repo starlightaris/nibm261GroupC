@@ -5,6 +5,7 @@ import EditProfile   from '@pages/settings/EditProfile';
 import EditLocations from '@pages/settings/EditLocations';
 import NotifPrefs    from '@pages/settings/NotificationPrefs';
 import TripHistory   from '@pages/settings/TripHistory';
+import TripSummary   from '@pages/settings/TripSummary';
 
 import type { SettingsStackParams } from '@navigation/types';
 
@@ -27,6 +28,7 @@ export default function PassengerSettingsStack() {
       <Stack.Screen name="EditLocations"           component={EditLocations} options={{ title: 'My locations' }} />
       <Stack.Screen name="NotificationPreferences" component={NotifPrefs}    options={{ title: 'Notifications' }} />
       <Stack.Screen name="TripHistory"             component={TripHistory}   options={{ title: 'Trip history' }} />
+      <Stack.Screen name="TripSummary"             component={TripSummary}   options={{ title: 'Trip summary' }} />
     </Stack.Navigator>
   );
 }

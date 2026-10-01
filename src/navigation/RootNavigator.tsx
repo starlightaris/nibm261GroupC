@@ -14,6 +14,7 @@ import DriverSignUpBus     from '@pages/auth/DriverSignUpBus';
 import DriverTabs    from '@navigation/DriverTabs';
 import PassengerTabs from '@navigation/PassengerTabs';
 import ActiveTrip    from '@pages/driver/ActiveTrip';
+import TripSummary   from '@pages/settings/TripSummary';
 
 import type {
   AuthStackParams,
@@ -50,6 +51,7 @@ function DriverNavigator() {
         component={ActiveTrip}
         options={{ animation: 'slide_from_bottom' }}
       />
+      <DriverRoot.Screen name="TripSummary" component={TripSummary} options={{ gestureEnabled: false }} />
     </DriverRoot.Navigator>
   );
 }
