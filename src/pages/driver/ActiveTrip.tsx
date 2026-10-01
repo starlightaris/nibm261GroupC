@@ -8,6 +8,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,10 +20,9 @@ import { useActiveTrip } from '@hooks/useActiveTrip';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
 import { Colors, Radius, Spacing } from '@styles/tokens';
-import { countTripActions, tripStopKind, type TripStop } from '@utils/tripStops';
+import { tripStopKind, type TripStop } from '@utils/tripStops';
 import NextStopCard from '@components/driver/activetrip/NextStopCard';
 import PassengerQueue from '@components/driver/activetrip/PassengerQueue';
-import TripCompleteCard from '@components/driver/activetrip/TripCompleteCard';
 
 // ─── Nav params ───────────────────────────────────────────────────────────────
 
@@ -106,7 +106,13 @@ export default function ActiveTripScreen() {
   // ── Start trip on mount ─────────────────────────────────────────────────────
   useEffect(() => {
     startTrip({ stops, shift, communityId });
-  }, []);
+  }, [startTrip, stops, shift, communityId]);
+
+  useEffect(() => {
+    if (trip.status === 'completed' && trip.tripId) {
+      navigation.replace('TripSummary', { tripId: trip.tripId, completedNow: true });
+    }
+  }, [trip.status, trip.tripId, navigation]);
 
   // ── Re-centre map on next stop or driver location change ────────────────────
   useEffect(() => {
@@ -123,16 +129,19 @@ export default function ActiveTripScreen() {
   };
 
   // ── End trip ───────────────────────────────────────────────────────────────
-  const handleDone = async () => {
-    await endTrip();
-    navigation.goBack();
+  const handleEndTrip = () => {
+    if (tripLoading || trip.status !== 'active') return;
+    Alert.alert('End trip?', 'Your journey will be saved. Passengers who have not been collected will be marked as missed.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Confirm', onPress: () => { void endTrip(); } },
+    ]);
   };
 
   // ── Guards ─────────────────────────────────────────────────────────────────
   if (tripLoading && trip.status === 'pending') {
     return <LoadingScreen message="Starting trip…" />;
   }
-  if (tripError) {
+  if (tripError && trip.status === 'pending') {
     return <ErrorScreen message={tripError} onBack={() => navigation.goBack()} />;
   }
 
@@ -243,13 +252,8 @@ export default function ActiveTripScreen() {
 
       {/* ── Bottom sheet ─────────────────────────────────────────────────── */}
       <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        {isComplete ? (
-          <TripCompleteCard
-            pickups={countTripActions(trip.allStops).pickups}
-            dropoffs={countTripActions(trip.allStops).dropoffs}
-            onDone={handleDone}
-          />
-        ) : trip.nextStop ? (
+        {tripError && <Text style={styles.saveError} accessibilityRole="alert">{tripError} Please try again.</Text>}
+        {!isComplete && trip.nextStop ? (
           <NextStopCard
             stop={trip.nextStop}
             stopNumber={trip.currentStopIndex + 1}
@@ -265,6 +269,11 @@ export default function ActiveTripScreen() {
           allStops={trip.allStops}
           currentIndex={trip.currentStopIndex}
         />
+        {!isComplete && (
+          <TouchableOpacity style={styles.endBtn} onPress={handleEndTrip} disabled={tripLoading} accessibilityRole="button" accessibilityLabel="End trip">
+            <Text style={styles.endBtnText}>{tripLoading ? 'Saving…' : 'End Trip'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -272,10 +281,13 @@ export default function ActiveTripScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const SHEET_HEIGHT = 330;
+const SHEET_HEIGHT = 380;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  endBtn: { marginHorizontal: Spacing.lg, marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.button, backgroundColor: Colors.white, alignItems: 'center', borderWidth: 1, borderColor: Colors.error },
+  endBtnText: { color: Colors.error, fontWeight: '700', fontSize: 14 },
+  saveError: { marginHorizontal: Spacing.lg, padding: Spacing.sm, backgroundColor: Colors.errorLight, color: Colors.error, fontSize: 13 },
 
   centered: {
     flex: 1,
