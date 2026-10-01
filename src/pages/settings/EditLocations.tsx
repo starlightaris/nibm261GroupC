@@ -5,10 +5,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SettingsStackParams } from '@navigation/types';
 import { useUpdateLocation } from '@hooks/useUpdateLocation';
 import { usePassengerCommunity } from '@hooks/usePassengerCommunity';
+import LocationPermissionGate from '@components/location/LocationPermissionGate';
 
 type Props = NativeStackScreenProps<SettingsStackParams, 'EditLocations'>;
 
-export default function EditLocations({ route, navigation }: Props) {
+function EditLocationsContent({ route, navigation }: Props) {
   const { mode } = route.params;
   const { saveLocation, isSaving } = useUpdateLocation();
   const { community, loading: communityLoading } = usePassengerCommunity();
@@ -100,6 +101,14 @@ export default function EditLocations({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
     </View>
+  );
+}
+
+export default function EditLocations(props: Props) {
+  return (
+    <LocationPermissionGate role="passenger" remountOnGrant>
+      <EditLocationsContent {...props} />
+    </LocationPermissionGate>
   );
 }
 

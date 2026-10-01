@@ -192,7 +192,7 @@ export function useDriverRoute(): UseDriverRouteResult {
       // instead of leaving them in community join order.
       let orderedStops = activeStops;
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.getForegroundPermissionsAsync();
         if (status === 'granted') {
           const pos = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,

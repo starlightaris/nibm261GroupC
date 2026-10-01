@@ -13,12 +13,13 @@ import ShiftBadge from '@components/driver/route/ShiftBadge';
 import RouteMap from '@components/driver/route/RouteMap';
 import StopRow from '@components/driver/route/StopRow';
 import { EmptyRoute, ErrorState } from '@components/driver/route/EmptyRoute';
+import LocationPermissionGate from '@components/location/LocationPermissionGate';
 
 type RouteNavProp = NativeStackNavigationProp<RootStackParams, 'DriverTabs'>;
 
 const MAPS_API_KEY: string = Constants.expoConfig?.extra?.googleMapsApiKey ?? '';
 
-export default function RouteScreen() {
+function RouteScreenContent() {
   const navigation = useNavigation<RouteNavProp>();
   const { stops, activeShift, communityId, loading, error } = useDriverRoute();
 
@@ -153,6 +154,14 @@ export default function RouteScreen() {
 }
 
 // ─── Stat box ─────────────────────────────────────────────────────────────────
+
+export default function RouteScreen() {
+  return (
+    <LocationPermissionGate role="driver" remountOnGrant>
+      <RouteScreenContent />
+    </LocationPermissionGate>
+  );
+}
 
 function Stat({
   label,
