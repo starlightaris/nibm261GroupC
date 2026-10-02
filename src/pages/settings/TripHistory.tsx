@@ -11,9 +11,9 @@ import { formatTripDate, formatTripDuration } from '@utils/tripSummary';
 type Props = NativeStackScreenProps<SettingsStackParams, 'TripHistory'>;
 
 export default function TripHistoryScreen({ navigation }: Props) {
-  const { data: trips, loading, error, reload, role } = useTripHistory();
+  const { data: trips, loading, refreshing, error, reload, role } = useTripHistory();
   if (loading) return <TripRecordState loading title="Loading trip history…" />;
-  if (error) return <TripRecordState title="History unavailable" message={error} onRetry={reload} />;
+  if (error && trips === null) return <TripRecordState title="History unavailable" message={error} onRetry={reload} />;
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
@@ -21,11 +21,14 @@ export default function TripHistoryScreen({ navigation }: Props) {
         data={trips ?? []}
         keyExtractor={(trip) => trip.id}
         contentContainerStyle={[styles.content, !trips?.length && styles.empty]}
-        refreshing={false}
+        refreshing={refreshing}
         onRefresh={reload}
-        ListHeaderComponent={trips?.length ? (
-          <Text style={styles.description}>{role === 'driver' ? 'Your completed journeys, newest first.' : 'Completed journeys from communities you were part of.'}</Text>
-        ) : null}
+        ListHeaderComponent={(
+          <View>
+            {error && <TouchableOpacity onPress={reload} accessibilityRole="button"><Text style={styles.refreshError}>{error} Tap to retry.</Text></TouchableOpacity>}
+            {trips?.length ? <Text style={styles.description}>{role === 'driver' ? 'Your latest completed journeys, newest first.' : 'Completed journeys from communities you were part of.'}</Text> : null}
+          </View>
+        )}
         ListEmptyComponent={<TripRecordState title="No completed trips yet" message={role === 'driver' ? 'Your journeys will appear here when you finish a trip.' : 'Completed trips for your community will appear here.'} />}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -52,6 +55,7 @@ export default function TripHistoryScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  refreshError: { padding: Spacing.md, marginBottom: Spacing.md, color: Colors.error, backgroundColor: Colors.errorLight, borderRadius: Radius.button },
   content: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
   empty: { flexGrow: 1 },
   description: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: Spacing.xs },

@@ -5,7 +5,7 @@
   "scripts": {
     "start": "expo start",
     "test": "node --import tsx --test tests/*.test.mjs",
-    "test:expo-go": "node scripts/checkExpoGo.mjs",
+    "test:rules": "npx --yes firebase-tools@15.32.1 emulators:exec --only firestore --project demo-trip-review --config firebase.emulator.json \"node --import tsx --test tests/firestoreRules.cjs\"",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
@@ -40,6 +40,7 @@
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
     "@types/react": "~19.2.4",
     "babel-plugin-module-resolver": "^5.0.3",
     "react-test-renderer": "19.2.3",

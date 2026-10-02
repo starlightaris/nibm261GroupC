@@ -10,7 +10,7 @@ const person = (userId) => ({ userId, name: userId });
 const stop = (id, pickups = [], dropoffs = []) => ({ id, pickups: pickups.map(person), dropoffs: dropoffs.map(person) });
 const entry = (stopId, pickups = [], dropoffs = []) => ({ stopId, pickedUp: pickups.map(person), droppedOff: dropoffs.map(person) });
 const trip = (overrides = {}) => ({
-  driverId: 'driver', communityId: 'community', date: '2026-10-01', shift: 'morning', status: 'completed',
+  schemaVersion: 2, driverId: 'driver', communityId: 'community', date: '2026-10-01', shift: 'morning', status: 'completed',
   startedAt: '2026-10-01T01:30:00Z', endedAt: '2026-10-01T02:45:30Z',
   plannedStops: [stop('a', ['p1', 'p2']), stop('b', ['p3'], ['p1']), stop('c', [], ['p2', 'p3'])],
   completedStops: [entry('a', ['p1', 'p2']), entry('b', ['p3'], ['p1']), entry('c', [], ['p2', 'p3'])],
@@ -102,9 +102,9 @@ test('membership at departure includes absent passengers and survives community 
   assert.equal(canViewTrip(trip({ status: 'pending' }), { uid: 'p1', role: 'passenger' }), false);
 });
 
-test('legacy passenger access requires evidence in pickup or drop-off logs', () => {
-  const legacy = trip({ participantIds: undefined });
-  assert.equal(canViewTrip(legacy, { uid: 'p1', role: 'passenger' }), true);
+test('legacy passenger access is denied even when pickup logs prove participation', () => {
+  const legacy = trip({ schemaVersion: undefined, participantIds: undefined });
+  assert.equal(canViewTrip(legacy, { uid: 'p1', role: 'passenger' }), false);
   assert.equal(canViewTrip(legacy, { uid: 'absent', role: 'passenger' }), false);
   assert.equal(canViewTrip(trip({ participantIds: [] }), { uid: 'p1', role: 'passenger' }), false);
 });

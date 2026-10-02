@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import type { TripSummary } from '../../types/trip';
-import { formatTripDate, formatTripDuration, formatTripTime } from '../../utils/tripSummary';
+import { formatTripDate, formatTripDuration, formatTripTime } from '@utils/tripSummary';
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
