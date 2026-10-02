@@ -20,6 +20,12 @@ export interface TripDocument {
   status: TripStatus;
   startedAt: unknown;
   endedAt: unknown;
+  schemaVersion?: 2;
+  plannedStopIds?: string[];
+  plannedPassengerIds?: string[];
+  completedStopIds?: string[];
+  collectedPassengerIds?: string[];
+  /** Legacy fields: read by drivers only; never written to new shared records. */
   completedStops?: CompletedStopLogEntry[];
   plannedStops?: TripStop[];
   /** Community membership at departure, including absent passengers. */
@@ -46,4 +52,9 @@ export interface TripSummary extends TripTotals {
   endedAt: string | null;
 }
 
-export type StoredTrip = { id: string; data: TripDocument };
+export interface PrivateTripRoute {
+  plannedStops: TripStop[];
+  completedStops: CompletedStopLogEntry[];
+}
+
+export type StoredTrip = { id: string; data: TripDocument; route?: PrivateTripRoute };

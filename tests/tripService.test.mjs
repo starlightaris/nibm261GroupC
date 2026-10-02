@@ -18,12 +18,12 @@ function fixture() {
   const repo = {
     findActive: async (uid, date, shift) => [...records.values()].find(({ data }) => data.driverId === uid && data.date === date && data.shift === shift && ['pending', 'active'].includes(data.status)) ?? null,
     community: async () => ({ driverId: 'driver', memberIds: ['p1', 'p2', 'absent', 'p1'] }),
-    create: async (data) => { const id = `trip-${records.size + 1}`; records.set(id, { id, data: structuredClone(data) }); return id; },
-    update: async (id, data) => { writes.push({ id, data: structuredClone(data) }); records.get(id).data = { ...records.get(id).data, ...structuredClone(data) }; },
+    create: async (data, route) => { const id = `trip-${records.size + 1}`; records.set(id, { id, data: structuredClone(data), route: structuredClone(route) }); return id; },
+    update: async (id, data, route) => { writes.push({ id, data: structuredClone(data), route: structuredClone(route) }); records.get(id).data = { ...records.get(id).data, ...structuredClone(data) }; if (route) records.get(id).route = structuredClone(route); },
+    getRoute: async (id) => records.get(id)?.route ?? null,
     get: async (id) => records.get(id) ?? null,
     byDriver: async (uid) => [...records.values()].filter(({ data }) => data.driverId === uid),
     byParticipant: async (uid) => [...records.values()].filter(({ data }) => data.participantIds?.includes(uid)),
-    legacyByPassenger: async () => [...records.values()].filter(({ data }) => !data.participantIds),
   };
   return { repo, records, writes };
 }
@@ -38,21 +38,28 @@ test('departure saves the route, shift, date, start time and historical communit
   assert.equal(data.totalStopsPlanned, 2);
   assert.equal(data.passengersPlanned, 2);
   assert.deepEqual(data.participantIds, ['p1', 'p2', 'absent']);
-  assert.deepEqual(data.plannedStops, stops);
+  assert.deepEqual(records.get(stored.id).route.plannedStops, stops);
+  assert.equal(data.plannedStops, undefined);
+  assert.equal(data.completedStops, undefined);
+  assert.equal(data.schemaVersion, 2);
+  assert.deepEqual(data.plannedStopIds, ['a', 'b']);
+  assert.doesNotMatch(JSON.stringify(data), /latitude|longitude|initials|location|"name"/);
 });
 
 test('resuming preserves the original route, start time, log and member snapshot', async () => {
   const { repo, records, writes } = fixture();
   const first = await startOrResumeTrip(repo, params, startTime);
-  records.get(first.id).data.completedStops = log;
+  records.get(first.id).route.completedStops = log;
   repo.community = async () => { throw new Error('must not resnapshot membership'); };
   const resumed = await startOrResumeTrip(repo, { ...params, stops: [stops[1]] }, endTime);
   assert.equal(records.size, 1);
   assert.equal(resumed.id, first.id);
   assert.equal(resumed.data.startedAt, startTime);
-  assert.deepEqual(resumed.data.plannedStops, stops);
-  assert.deepEqual(resumed.data.completedStops, log);
-  assert.deepEqual(writes, [{ id: first.id, data: { status: 'active' } }]);
+  assert.deepEqual(resumed.route.plannedStops, stops);
+  assert.deepEqual(resumed.route.completedStops, log);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].data.status, 'active');
+  assert.equal(writes[0].data.startedAt, startTime);
 });
 
 test('start rejects unauthenticated users, empty routes and another driver community', async () => {
@@ -79,7 +86,9 @@ test('early completion atomically saves accurate totals and makes the trip reada
     totalStopsPlanned: 2, stopsCompleted: 1, passengersPlanned: 2, passengersCollected: 1, passengersMissed: 1, durationSeconds: 1800,
   });
   assert.equal(writes[0].data.endedAt, endTime);
-  assert.deepEqual(writes[0].data.completedStops, log);
+  assert.deepEqual(writes[0].route.completedStops, log);
+  assert.equal(writes[0].data.completedStops, undefined);
+  assert.doesNotMatch(JSON.stringify(writes[0].data), /latitude|longitude|location|"name"/);
   const summary = await loadTripSummary(repo, completed.id, { uid: 'driver', role: 'driver' });
   const history = await loadTripHistory(repo, { uid: 'driver', role: 'driver' });
   assert.deepEqual(history, [summary]);
@@ -133,18 +142,17 @@ test('history filters active trips and other drivers and sorts completed journey
 test('passengers retain historical membership after leaving and cannot see trips before joining', async () => {
   const { repo } = fixture();
   const trip = await completeTrip(repo, await startOrResumeTrip(repo, params, startTime), log, endTime);
-  repo.legacyByPassenger = async () => [];
   assert.equal((await loadTripHistory(repo, { uid: 'absent', role: 'passenger' }))[0].id, trip.id);
   assert.deepEqual(await loadTripHistory(repo, { uid: 'new-member', role: 'passenger' }), []);
 });
 
-test('legacy history requires actual participation and deduplicates query results', async () => {
+test('passenger history excludes unsafe legacy records and deduplicates safe query results', async () => {
   const { repo, records } = fixture();
   const trip = await completeTrip(repo, await startOrResumeTrip(repo, params, startTime), log, endTime);
-  records.get(trip.id).data.participantIds = undefined;
-  repo.byParticipant = async () => [records.get(trip.id)];
+  repo.byParticipant = async () => [records.get(trip.id), records.get(trip.id)];
   assert.equal((await loadTripHistory(repo, { uid: 'p1', role: 'passenger' })).length, 1);
-  assert.deepEqual(await loadTripHistory(repo, { uid: 'p2', role: 'passenger' }), []);
+  records.get(trip.id).data.schemaVersion = undefined;
+  assert.deepEqual(await loadTripHistory(repo, { uid: 'p1', role: 'passenger' }), []);
 });
 
 test('direct summary links reject missing, unfinished and unrelated records', async () => {

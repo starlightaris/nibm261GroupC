@@ -3,6 +3,8 @@ import test from 'node:test';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { useActiveTrip } from '../src/hooks/useActiveTrip.ts';
+import { tripRepository } from '../src/services/tripRepository.ts';
+import { auth } from '../firebaseConfig.ts';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const location = { latitude: 6.9, longitude: 79.8 };
@@ -14,14 +16,16 @@ const stops = [
 const params = { stops, shift: 'morning', communityId: 'community' };
 
 async function harness(context) {
+  await auth.authStateReady();
   const writes = [];
   let stored = null;
   let creates = 0;
   const repository = {
     findActive: async () => stored?.data.status === 'active' ? stored : null,
     community: async () => ({ driverId: 'driver', memberIds: ['p1'] }),
-    create: async (data) => { creates++; stored = { id: 'trip', data: structuredClone(data) }; return 'trip'; },
-    update: async (id, data) => { writes.push(structuredClone(data)); stored.data = { ...stored.data, ...structuredClone(data) }; },
+    create: async (data, route) => { creates++; stored = { id: 'trip', data: structuredClone(data), route: structuredClone(route) }; return 'trip'; },
+    update: async (id, data, route) => { writes.push(structuredClone(data)); stored.data = { ...stored.data, ...structuredClone(data) }; if (route) stored.route = structuredClone(route); },
+    getRoute: async () => stored?.route ?? null,
     get: async () => stored,
     byDriver: async () => stored ? [stored] : [],
     byParticipant: async () => stored ? [stored] : [],
@@ -32,10 +36,17 @@ async function harness(context) {
   const originalError = console.error;
   context.mock.method(console, 'error', (...args) => {
     if (String(args[0]).startsWith('react-test-renderer is deprecated.')) return;
+    if (String(args[0]).startsWith('[useActiveTrip]')) return;
     originalError(...args);
   });
+  const previousUser = auth.currentUser;
+  auth.currentUser = { uid: 'driver' };
+  context.after(() => { auth.currentUser = previousUser; });
+  for (const key of Object.keys(tripRepository)) {
+    context.mock.method(tripRepository, key, (...args) => repository[key](...args));
+  }
   let result;
-  function Probe() { result = useActiveTrip(repository, 'driver'); return null; }
+  function Probe() { result = useActiveTrip(); return null; }
   let renderer;
   await act(async () => { renderer = create(React.createElement(Probe)); });
   context.after(async () => { await act(async () => renderer.unmount()); });
@@ -56,12 +67,12 @@ test('duplicate stop taps log once and the final drop-off automatically complete
   await act(async () => { await hook.result.startTrip(params); });
   await act(async () => { await Promise.all([hook.result.completeStop(), hook.result.completeStop()]); });
   assert.equal(hook.result.trip.currentStopIndex, 1);
-  assert.equal(hook.stored.data.completedStops.length, 1);
+  assert.equal(hook.stored.route.completedStops.length, 1);
   assert.equal(hook.result.trip.status, 'active');
   await act(async () => { await hook.result.completeStop(); });
   assert.equal(hook.result.trip.status, 'completed');
   assert.equal(hook.result.trip.nextStop, null);
-  assert.equal(hook.stored.data.completedStops.length, 2);
+  assert.equal(hook.stored.route.completedStops.length, 2);
   assert.equal(hook.stored.data.summary.passengersCollected, 1);
   assert.equal(hook.stored.data.summary.passengersMissed, 0);
   assert.equal(hook.stored.data.summary.stopsCompleted, 2);
@@ -102,7 +113,7 @@ test('failed End Trip stays active and retries successfully without losing compl
   await act(async () => { await hook.result.endTrip(); });
   assert.equal(hook.result.trip.status, 'completed');
   assert.equal(hook.result.error, null);
-  assert.equal(hook.stored.data.completedStops.length, 1);
+  assert.equal(hook.stored.route.completedStops.length, 1);
   assert.equal(hook.stored.data.summary.passengersCollected, 1);
 });
 
@@ -113,12 +124,12 @@ test('failed stop writes never advance or duplicate a pickup when retried', asyn
   hook.repository.update = async () => { throw new Error('permission denied'); };
   await act(async () => { await hook.result.completeStop(); });
   assert.equal(hook.result.trip.currentStopIndex, 0);
-  assert.equal(hook.stored.data.completedStops.length, 0);
+  assert.equal(hook.stored.route.completedStops.length, 0);
   assert.equal(hook.result.error, 'permission denied');
   hook.repository.update = update;
   await act(async () => { await hook.result.completeStop(); });
   assert.equal(hook.result.trip.currentStopIndex, 1);
-  assert.equal(hook.stored.data.completedStops.length, 1);
+  assert.equal(hook.stored.route.completedStops.length, 1);
 });
 
 test('failed final-stop writes do not report completion until successfully retried', async (context) => {
@@ -133,7 +144,7 @@ test('failed final-stop writes do not report completion until successfully retri
   hook.repository.update = update;
   await act(async () => { await hook.result.completeStop(); });
   assert.equal(hook.result.trip.status, 'completed');
-  assert.equal(hook.stored.data.completedStops.length, 2);
+  assert.equal(hook.stored.route.completedStops.length, 2);
 });
 
 test('a resumed trip uses the saved route even when today route parameters change', async (context) => {

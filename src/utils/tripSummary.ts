@@ -21,11 +21,11 @@ function recordedCount(value: unknown): number | null {
 
 export function buildTripSummary(id: string, trip: TripDocument): TripSummary {
   const log = trip.completedStops ?? [];
-  const collectedIds = new Set(log.flatMap((stop) => (stop.pickedUp ?? []).map((p) => p.userId)));
-  const plannedIds = trip.plannedStops
+  const collectedIds = new Set(trip.collectedPassengerIds ?? log.flatMap((stop) => (stop.pickedUp ?? []).map((p) => p.userId)));
+  const plannedIds = trip.plannedPassengerIds ? new Set(trip.plannedPassengerIds) : trip.plannedStops
     ? new Set(trip.plannedStops.flatMap((stop) => stop.pickups.map((p) => p.userId)))
     : null;
-  const totalStopsPlanned = trip.plannedStops?.length ?? recordedCount(trip.totalStopsPlanned);
+  const totalStopsPlanned = trip.plannedStopIds?.length ?? trip.plannedStops?.length ?? recordedCount(trip.totalStopsPlanned);
   const passengersPlanned = plannedIds?.size ?? recordedCount(trip.passengersPlanned);
   const passengersCollected = collectedIds.size;
   const passengersMissed = plannedIds
@@ -42,7 +42,7 @@ export function buildTripSummary(id: string, trip: TripDocument): TripSummary {
     startedAt,
     endedAt,
     totalStopsPlanned,
-    stopsCompleted: new Set(log.map((stop) => stop.stopId)).size,
+    stopsCompleted: new Set(trip.completedStopIds ?? log.map((stop) => stop.stopId)).size,
     passengersPlanned,
     passengersCollected,
     passengersMissed,
@@ -53,12 +53,9 @@ export function buildTripSummary(id: string, trip: TripDocument): TripSummary {
 export function canViewTrip(trip: TripDocument, viewer: TripViewer): boolean {
   if (trip.status !== 'completed') return false;
   if (viewer.role === 'driver') return trip.driverId === viewer.uid;
-  if (Array.isArray(trip.participantIds)) return trip.participantIds.includes(viewer.uid);
-  // Legacy trips have no membership snapshot. Only show proven participants,
-  // rather than giving a new member access to the community's entire history.
-  return (trip.completedStops ?? []).some((stop) =>
-    [...(stop.pickedUp ?? []), ...(stop.droppedOff ?? [])].some((p) => p.userId === viewer.uid)
-  );
+  // Older trip documents include locations/names. They cannot be safely
+  // exposed to passengers because Firestore reads return entire documents.
+  return trip.schemaVersion === 2 && (trip.participantIds ?? []).includes(viewer.uid);
 }
 
 export function sortTripSummaries(trips: TripSummary[]): TripSummary[] {
