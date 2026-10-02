@@ -23,6 +23,7 @@ import { countTripActions, tripStopKind, type TripStop } from '@utils/tripStops'
 import NextStopCard from '@components/driver/activetrip/NextStopCard';
 import PassengerQueue from '@components/driver/activetrip/PassengerQueue';
 import TripCompleteCard from '@components/driver/activetrip/TripCompleteCard';
+import { useDriverApproaching } from '@hooks/useDriverApproaching';
 
 // ─── Nav params ───────────────────────────────────────────────────────────────
 
@@ -102,7 +103,12 @@ export default function ActiveTripScreen() {
     apiKey: MAPS_API_KEY,
     enabled: trip.status === 'active',
   });
-
+  useDriverApproaching({
+  remainingStops: trip.remainingStops,
+  shift,
+  communityId,
+  enabled: trip.status === 'active',
+});
   // ── Start trip on mount ─────────────────────────────────────────────────────
   useEffect(() => {
     startTrip({ stops, shift, communityId });

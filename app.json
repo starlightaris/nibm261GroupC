@@ -6,37 +6,29 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.nibm.transportapp"
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8FAFC"
     },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.nibm.transportapp" },
     "android": {
       "package": "com.nibm.transportapp",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
+      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": { "favicon": "./assets/favicon.png" },
     "plugins": [
       "expo-barcode-scanner",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow TransportApp to use your camera to scan QR codes."
-        }
-      ],
+      ["expo-location", { "locationWhenInUsePermission": "Allow TransportApp to use your location for navigation." }],
+      ["expo-camera", { "cameraPermission": "Allow TransportApp to use your camera to scan QR codes." }],
       "expo-sharing",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      ["expo-notifications", { "color": "#1D4ED8" }],
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": { "projectId": "YOUR-EAS-PROJECT-ID" }
+    }
   }
 }
