@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import * as Location from 'expo-location';
 
 const INITIAL_REGION = {
   latitude: 6.9271, 
@@ -9,6 +10,11 @@ const INITIAL_REGION = {
   latitudeDelta: 0.015,
   longitudeDelta: 0.015,
 };
+
+// If the native map hasn't fired onMapReady within this window, treat it
+// as failed to load (bad network, missing/invalid Maps API key, etc.)
+// rather than leaving the passenger staring at a blank screen forever.
+const MAP_READY_TIMEOUT_MS = 10000;
 
 interface MapPickerProps {
   mode: 'Pickup' | 'Drop-off';
@@ -23,7 +29,43 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
     initialLocation?.address ?? 'Dragging map to pick...'
   );
   const [loadingAddress, setLoadingAddress] = useState<boolean>(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapLoadFailed, setMapLoadFailed] = useState(false);
+  const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY;
+
+  // Request foreground location permission once on mount. Denial isn't
+  // fatal — the passenger can still search or drop a pin manually — so
+  // this only toggles showsUserLocation and a small heads-up banner,
+  // it never blocks the picker.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setLocationPermissionDenied(status !== 'granted');
+      } catch (err) {
+        console.error('[MapPicker] permission request failed', err);
+        setLocationPermissionDenied(true);
+      }
+    })();
+  }, []);
+
+  // If the map doesn't become ready in time, surface a retry state
+  // instead of a silent blank screen.
+  useEffect(() => {
+    if (mapReady) return;
+    const timeout = setTimeout(() => {
+      setMapLoadFailed(true);
+    }, MAP_READY_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [mapReady, mapInstanceKey]);
+
+  const handleRetryMap = () => {
+    setMapLoadFailed(false);
+    setMapReady(false);
+    setMapInstanceKey((k) => k + 1);
+  };
 
   const fetchReadableAddress = async (latitude: number, longitude: number) => {
     setLoadingAddress(true);
@@ -52,6 +94,20 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
     fetchReadableAddress(region.latitude, region.longitude);
   };
 
+  if (mapLoadFailed) {
+    return (
+      <View style={[styles.container, styles.mapErrorContainer]}>
+        <Text style={styles.mapErrorTitle}>Map failed to load</Text>
+        <Text style={styles.mapErrorSubtitle}>
+          Check your connection and try again.
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetryMap}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -75,7 +131,16 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
         />
       </View>
 
+      {locationPermissionDenied && (
+        <View style={styles.permissionBanner}>
+          <Text style={styles.permissionBannerText}>
+            Location access is off — search for an address or drag the pin manually.
+          </Text>
+        </View>
+      )}
+
       <MapView
+        key={mapInstanceKey}
         ref={mapRef}
         style={styles.map}
         initialRegion={
@@ -89,7 +154,8 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
             : INITIAL_REGION
         }
         onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation={true}
+        onMapReady={() => setMapReady(true)}
+        showsUserLocation={!locationPermissionDenied}
       />
 
       <View style={styles.centerPinContainer} pointerEvents="none">
@@ -118,5 +184,12 @@ const styles = StyleSheet.create({
   pin: { width: 30, height: 30, backgroundColor: '#E63946', borderRadius: 15, borderWidth: 2, borderColor: '#FFF' },
   pinPoint: { width: 4, height: 10, backgroundColor: '#1D3557' },
   addressDisplayCard: { position: 'absolute', bottom: 10, width: '90%', alignSelf: 'center', backgroundColor: '#FFF', padding: 15, borderRadius: 8, elevation: 2, alignItems: 'center' },
-  addressText: { fontSize: 14, fontWeight: '600', color: '#1D3557', textAlign: 'center' }
+  addressText: { fontSize: 14, fontWeight: '600', color: '#1D3557', textAlign: 'center' },
+  permissionBanner: { position: 'absolute', top: 58, width: '90%', alignSelf: 'center', zIndex: 1, backgroundColor: '#FFF3CD', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
+  permissionBannerText: { fontSize: 12, color: '#8A6D1D', textAlign: 'center' },
+  mapErrorContainer: { alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#FFF' },
+  mapErrorTitle: { fontSize: 16, fontWeight: '700', color: '#1D3557', marginBottom: 6 },
+  mapErrorSubtitle: { fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 18 },
+  retryButton: { backgroundColor: '#1D3557', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+  retryButtonText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
 });
