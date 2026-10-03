@@ -18,6 +18,7 @@ import Constants from 'expo-constants';
 import { useActiveTrip } from '@hooks/useActiveTrip';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
+import LocationPermissionGate from '@components/location/LocationPermissionGate';
 import { Colors, Radius, Spacing } from '@styles/tokens';
 import { countTripActions, tripStopKind, type TripStop } from '@utils/tripStops';
 import NextStopCard from '@components/driver/activetrip/NextStopCard';
@@ -74,7 +75,7 @@ function ErrorScreen({ message, onBack }: { message: string; onBack: () => void 
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function ActiveTripScreen() {
+function ActiveTripContent() {
   const navigation = useNavigation<ActiveTripNavProp>();
   const route = useRoute<ActiveTripRouteProp>();
   const insets = useSafeAreaInsets();
@@ -378,3 +379,12 @@ const styles = StyleSheet.create({
   },
   markerDoneText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
 });
+
+// Not remounted on grant: re-running the screen would start the trip again.
+export default function ActiveTripScreen() {
+  return (
+    <LocationPermissionGate role="driver">
+      <ActiveTripContent />
+    </LocationPermissionGate>
+  );
+}
