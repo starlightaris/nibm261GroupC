@@ -99,13 +99,3 @@ export function buildQueueItems(stops: TripStop[]): QueueItem[] {
     })),
   ]);
 }
-
-export function countTripActions(stops: TripStop[]): { pickups: number; dropoffs: number } {
-  return stops.reduce(
-    (acc, s) => ({
-      pickups: acc.pickups + s.pickups.length,
-      dropoffs: acc.dropoffs + s.dropoffs.length,
-    }),
-    { pickups: 0, dropoffs: 0 }
-  );
-}

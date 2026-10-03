@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildStopEntries, isValidEntryOrder } from '../src/utils/routeStopEntries.ts';
 import {
-  buildQueueItems, buildTripStops, countTripActions, tripStopKind,
+  buildQueueItems, buildTripStops, tripStopKind,
 } from '../src/utils/tripStops.ts';
 
 const at = (lat, lng) => ({ latitude: lat, longitude: lng });
@@ -78,7 +78,6 @@ test('supports a mixed order: pickups, a drop-off in between, then more pickups'
   const stops = buildTripStops(order);
 
   assert.deepEqual(stops.map(tripStopKind), ['pickup', 'pickup', 'dropoff', 'pickup']);
-  assert.deepEqual(countTripActions(stops), { pickups: 3, dropoffs: 1 });
 });
 
 test('gives each stop a stable, unique id', () => {
@@ -114,7 +113,6 @@ test('default Route order (all pickups, then drop-offs) builds a valid trip that
 
   assert.equal(isValidEntryOrder(entries), true);
   assert.equal(tripStopKind(stops[stops.length - 1]), 'dropoff');
-  assert.deepEqual(countTripActions(stops), { pickups: 2, dropoffs: 2 });
 });
 
 test('rejects an order that drops someone off before picking them up', () => {

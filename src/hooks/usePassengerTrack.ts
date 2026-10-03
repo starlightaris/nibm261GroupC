@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { usePassengerCommunity, type PassengerCommunity } from './usePassengerCommunity';
 import { estimateEta, type Eta } from '../utils/eta';
 import { isPickedUp, secondsSince } from '../utils/tripProgress';
+import { passengerActiveTripQuery } from '@services/liveTripService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ export function usePassengerTrack(): UsePassengerTrackResult {
   } = usePassengerCommunity();
 
   const driverId = community?.driverId ?? null;
+  const communityId = community?.communityId ?? null;
   const uid = community?.member.userId ?? null;
 
   const [trip, setTrip] = useState<ActiveTripSnapshot | null>(null);
@@ -109,7 +111,7 @@ export function usePassengerTrack(): UsePassengerTrackResult {
 
   // ── Subscribe to today's active trip for this passenger's driver ───────────
   useEffect(() => {
-    if (!driverId) {
+    if (!driverId || !communityId || !uid) {
       setTrip(null);
       setTripLoading(false);
       setTripError(null);
@@ -117,19 +119,16 @@ export function usePassengerTrack(): UsePassengerTrackResult {
     }
 
     setTripLoading(true);
+    setTrip(null);
     setTripError(null);
 
-    // All-equality filters -> no composite index needed.
-    const tripQuery = query(
-      collection(db, 'trips'),
-      where('driverId', '==', driverId),
-      where('date', '==', getTodayString()),
-      where('status', '==', 'active')
-    );
+    const tripQuery = passengerActiveTripQuery(db, communityId, driverId, getTodayString());
+    let cancelled = false;
 
     const unsubscribe = onSnapshot(
       tripQuery,
       (snap) => {
+        if (cancelled) return;
         if (snap.empty) {
           setTrip(null);
         } else {
@@ -142,21 +141,23 @@ export function usePassengerTrack(): UsePassengerTrackResult {
           setTrip({
             tripId: latest.id,
             driverLocation: parseDriverLocation(data.driverLocation),
-            pickedUp: isPickedUp(data.completedStops, uid),
+            pickedUp: isPickedUp(data.collectedPassengerIds, uid),
           });
         }
         setTripError(null);
         setTripLoading(false);
       },
       (err) => {
+        if (cancelled) return;
         console.error('[usePassengerTrack]', err);
+        setTrip(null);
         setTripError(err?.message ?? 'Failed to load trip.');
         setTripLoading(false);
       }
     );
 
-    return unsubscribe;
-  }, [driverId, uid]);
+    return () => { cancelled = true; unsubscribe(); };
+  }, [communityId, driverId, uid]);
 
   // ── Clock tick so the "stale" indicator updates between snapshots ──────────
   const activeTripId = trip?.tripId ?? null;
