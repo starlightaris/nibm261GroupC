@@ -56,6 +56,8 @@ export function useDriverApproaching({
       try {
         if (await isAbsent(uid)) return;
         const snap = await getDoc(doc(db, 'users', uid));
+        // Passenger switched off "Driver nearby" in Notification preferences
+        if (snap.data()?.notificationPrefs?.driverApproaching === false) return;
         const token = snap.data()?.pushToken as string | undefined;
         if (!token) return;
         const mins = etaMinutes(meters);

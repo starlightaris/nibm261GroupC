@@ -28,7 +28,7 @@
       "expo-splash-screen"
     ],
     "extra": {
-      "eas": { "projectId": "YOUR-EAS-PROJECT-ID" }
+      "eas": { "projectId": "33b59a62-f8b3-469e-a447-177c59ad04a8" }
     }
   }
 }
