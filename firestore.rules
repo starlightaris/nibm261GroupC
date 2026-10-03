@@ -13,8 +13,26 @@ service cloud.firestore {
       return ownsTrip(data) || (
         signedIn()
         && data.get('schemaVersion', 0) == 2
-        && data.status == 'completed'
-        && request.auth.uid in data.participantIds
+        && (
+          (data.status == 'completed' && request.auth.uid in data.participantIds)
+          || (data.status == 'active'
+            && request.auth.uid in get(/databases/$(database)/documents/communities/$(data.communityId)).data.memberIds)
+        )
+      );
+    }
+
+    function safeDriverLocation(data) {
+      return !('driverLocation' in data) || (
+        data.status == 'active'
+        && data.driverLocation.keys().hasAll(['latitude', 'longitude', 'heading', 'updatedAt'])
+        && data.driverLocation.keys().hasOnly(['latitude', 'longitude', 'heading', 'updatedAt'])
+        && data.driverLocation.latitude is number
+        && data.driverLocation.latitude >= -90 && data.driverLocation.latitude <= 90
+        && data.driverLocation.longitude is number
+        && data.driverLocation.longitude >= -180 && data.driverLocation.longitude <= 180
+        && (data.driverLocation.heading == null || (data.driverLocation.heading is number
+          && data.driverLocation.heading >= -1 && data.driverLocation.heading <= 360))
+        && data.driverLocation.updatedAt is string
       );
     }
 
@@ -24,8 +42,9 @@ service cloud.firestore {
           'schemaVersion', 'driverId', 'communityId', 'date', 'shift', 'status',
           'startedAt', 'endedAt', 'plannedStopIds', 'plannedPassengerIds',
           'completedStopIds', 'collectedPassengerIds', 'participantIds',
-          'totalStopsPlanned', 'passengersPlanned', 'summary'
+          'totalStopsPlanned', 'passengersPlanned', 'summary', 'driverLocation'
         ])
+        && safeDriverLocation(data)
         && data.status in ['active', 'completed']
         && data.shift in ['morning', 'evening']
         && data.plannedStopIds is list

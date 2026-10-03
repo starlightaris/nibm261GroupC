@@ -1,9 +1,10 @@
 /**
  * True once the driver has completed a stop that picked this passenger up.
- * Reads trips/{id}.completedStops, as written by useActiveTrip.completeStop.
+ * Reads schema-v2 collectedPassengerIds; also accepts legacy stop logs.
  */
 export function isPickedUp(completedStops: unknown, userId: string | null): boolean {
   if (!userId || !Array.isArray(completedStops)) return false;
+  if (completedStops.includes(userId)) return true;
   return completedStops.some(
     (stop) =>
       Array.isArray(stop?.pickedUp) &&

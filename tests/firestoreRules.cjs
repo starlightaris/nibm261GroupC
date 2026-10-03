@@ -2,12 +2,14 @@ const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
 const { readFile } = require('node:fs/promises');
 const { assertFails, assertSucceeds, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
-const { collection, doc, getDoc, getDocs, limit, query, setDoc, where, writeBatch } = require('firebase/firestore');
+const { collection, doc, getDoc, getDocs, limit, query, setDoc, updateDoc, where, writeBatch } = require('firebase/firestore');
 const { createTripRepository } = require('../src/services/tripRepository.ts');
 const { completeTrip, startOrResumeTrip } = require('../src/services/tripService.ts');
+const { passengerActiveTripQuery } = require('../src/services/liveTripService.ts');
 
 let environment;
 const position = { latitude: 6.9, longitude: 79.8 };
+const driverLocation = { ...position, heading: null, updatedAt: '2026-10-03T01:30:00Z' };
 const passenger = { userId: 'passenger', name: 'Private Name', initials: 'PN', pickupLocation: position, dropoffLocation: position, attendanceStatus: 'present' };
 const stops = [{ id: 'stop', location: position, pickups: [passenger], dropoffs: [] }];
 const trip = (overrides = {}) => ({
@@ -33,6 +35,10 @@ before(async () => {
     batch.set(doc(db, 'trips', 'completed', 'private', 'route'), { plannedStops: stops, completedStops: [] });
     batch.set(doc(db, 'trips', 'foreign'), trip({ driverId: 'other-driver', participantIds: ['other-passenger'] }));
     batch.set(doc(db, 'trips', 'active'), trip({ date: '2026-10-03', status: 'active', endedAt: null }));
+    batch.set(doc(db, 'trips', 'active', 'private', 'route'), { plannedStops: stops, completedStops: [] });
+    batch.set(doc(db, 'communities', 'tracking-community'), { driverId: 'driver', memberIds: ['passenger', 'new-member'] });
+    batch.set(doc(db, 'trips', 'tracking-active'), trip({ communityId: 'tracking-community', date: '2026-10-03', status: 'active', endedAt: null, driverLocation }));
+    batch.set(doc(db, 'trips', 'tracking-legacy'), { driverId: 'driver', communityId: 'tracking-community', date: '2026-10-03', status: 'active', plannedStops: stops });
     batch.set(doc(db, 'trips', 'legacy'), {
       driverId: 'driver', communityId: 'community', date: '2026-09-01', shift: 'morning', status: 'completed',
       startedAt: '2026-09-01T01:00:00Z', endedAt: '2026-09-01T02:00:00Z',
@@ -69,9 +75,57 @@ test('members can read a completed shared record but never its private route', a
   assert.doesNotMatch(JSON.stringify(snapshot.data()), /latitude|longitude|Private Name|pickupLocation/);
   await assertFails(getDoc(doc(db, 'trips', 'completed', 'private', 'route')));
   await assertFails(setDoc(doc(db, 'trips', 'completed', 'private', 'route'), { plannedStops: [] }));
-  await assertFails(getDoc(doc(db, 'trips', 'active')));
+  await assertSucceeds(getDoc(doc(db, 'trips', 'active')));
+  await assertFails(getDoc(doc(db, 'trips', 'active', 'private', 'route')));
   await assertFails(getDoc(doc(db, 'trips', 'foreign')));
   await assertFails(getDoc(doc(db, 'trips', 'legacy')));
+});
+
+test('the exact passenger tracking query allows current members and excludes legacy route data', async () => {
+  for (const uid of ['passenger', 'new-member']) {
+    const db = environment.authenticatedContext(uid).firestore();
+    const snapshot = await assertSucceeds(getDocs(passengerActiveTripQuery(db, 'tracking-community', 'driver', '2026-10-03')));
+    assert.deepEqual(snapshot.docs.map((record) => record.id), ['tracking-active']);
+    assert.deepEqual(snapshot.docs[0].data().driverLocation, driverLocation);
+    assert.deepEqual(snapshot.docs[0].data().collectedPassengerIds, ['passenger']);
+    await assertFails(getDoc(doc(db, 'trips', 'tracking-legacy')));
+  }
+  const stranger = environment.authenticatedContext('stranger').firestore();
+  await assertFails(getDocs(passengerActiveTripQuery(stranger, 'tracking-community', 'driver', '2026-10-03')));
+  const anonymous = environment.unauthenticatedContext().firestore();
+  await assertFails(getDocs(passengerActiveTripQuery(anonymous, 'tracking-community', 'driver', '2026-10-03')));
+});
+
+test('leaving revokes active tracking but preserves historical summary access', async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'communities', 'left-community'), { driverId: 'driver', memberIds: [] });
+    await setDoc(doc(context.firestore(), 'trips', 'left-active'), trip({ communityId: 'left-community', status: 'active', endedAt: null }));
+    await setDoc(doc(context.firestore(), 'trips', 'left-completed'), trip({ communityId: 'left-community' }));
+  });
+  const db = environment.authenticatedContext('passenger').firestore();
+  await assertFails(getDoc(doc(db, 'trips', 'left-active')));
+  await assertSucceeds(getDoc(doc(db, 'trips', 'left-completed')));
+});
+
+test('only the owning driver can publish a valid active GPS fix and completion deletes it', async () => {
+  const db = environment.authenticatedContext('driver').firestore();
+  const reference = doc(db, 'trips', 'active');
+  await assertSucceeds(updateDoc(reference, { driverLocation }));
+  await assertSucceeds(updateDoc(reference, { driverLocation: { ...driverLocation, heading: 120 } }));
+  const passengerDb = environment.authenticatedContext('passenger').firestore();
+  assert.deepEqual((await getDoc(doc(passengerDb, 'trips', 'active'))).data().driverLocation, { ...driverLocation, heading: 120 });
+  for (const uid of ['passenger', 'other-driver']) {
+    await assertFails(updateDoc(doc(environment.authenticatedContext(uid).firestore(), 'trips', 'active'), { driverLocation }));
+  }
+  await assertFails(updateDoc(reference, { driverLocation: { ...driverLocation, latitude: 91 } }));
+  await assertFails(updateDoc(reference, { driverLocation: { ...driverLocation, longitude: -181 } }));
+  await assertFails(updateDoc(reference, { driverLocation: { ...driverLocation, passengerName: 'Private Name' } }));
+  const repository = createTripRepository(db);
+  const active = await repository.get('active');
+  active.route = await repository.getRoute('active');
+  await completeTrip(repository, active, [], '2026-10-03T02:00:00Z');
+  assert.equal('driverLocation' in (await getDoc(reference)).data(), false);
+  await assertFails(updateDoc(reference, { driverLocation }));
 });
 
 test('absent members retain access through the saved membership snapshot', async () => {
@@ -121,7 +175,7 @@ test('resuming an older active trip moves its route into private storage and rem
   await environment.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), 'trips', 'legacy-active'), {
       driverId: 'driver', communityId: 'community', date: '2026-10-05', shift: 'morning', status: 'active',
-      startedAt: oldStart, endedAt: null, plannedStops: stops, completedStops: [],
+      startedAt: oldStart, endedAt: null, plannedStops: stops, completedStops: [], driverLocation,
     });
   });
   const repository = createTripRepository(environment.authenticatedContext('driver').firestore());
@@ -131,5 +185,7 @@ test('resuming an older active trip moves its route into private storage and rem
   assert.equal(resumed.id, 'legacy-active');
   assert.equal(resumed.data.startedAt, oldStart);
   assert.deepEqual((await repository.getRoute(resumed.id)).plannedStops, stops);
-  assert.doesNotMatch(JSON.stringify((await repository.get(resumed.id)).data), /latitude|longitude|Private Name|plannedStops|completedStops/);
+  const shared = (await repository.get(resumed.id)).data;
+  assert.deepEqual(shared.driverLocation, driverLocation);
+  assert.doesNotMatch(JSON.stringify(shared), /Private Name|plannedStops|completedStops|pickupLocation/);
 });

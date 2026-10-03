@@ -50,6 +50,8 @@ export function createTripRepository(database: Firestore): TripRepository {
         ...data,
         // Clean up the older shared fields when an active trip is resumed.
         ...(data.schemaVersion === 2 ? { plannedStops: deleteField(), completedStops: deleteField() } : {}),
+        // Stop sharing GPS in the same atomic write that publishes completion.
+        ...(data.status === 'completed' ? { driverLocation: deleteField() } : {}),
       });
       if (route) batch.set(doc(reference, 'private', 'route'), route);
       await batch.commit();

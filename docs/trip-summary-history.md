@@ -8,7 +8,7 @@ Both roles can open **Settings → Trip History** and select a completed journey
 
 ## Saved trip data
 
-New `trips/{id}` documents use `schemaVersion: 2`, retain the existing driver, community, date, shift and timestamp fields, and add only IDs and aggregate counts:
+New `trips/{id}` documents use `schemaVersion: 2`, retain the existing driver, community, date, shift and timestamp fields, and share IDs, aggregate counts and the active driver's GPS fix:
 
 | Field | Purpose |
 | --- | --- |
@@ -18,16 +18,27 @@ New `trips/{id}` documents use `schemaVersion: 2`, retain the existing driver, c
 | `passengersPlanned` | Number of distinct passengers scheduled for pickup |
 | `completedStopIds`, `collectedPassengerIds` | Distinct completed stops and collected passenger IDs |
 | `summary` | Planned/completed stops, planned/collected/missed passengers and duration in seconds |
+| `driverLocation` | Validated latitude, longitude, heading and update time while active; deleted atomically on completion |
 
 The full ordered route, passenger names, pickup/drop-off coordinates and detailed completion log live in `trips/{id}/private/route`, accessible only to the owning driver under the supplied replacement rules. Creation, progress and completion batch the shared record and private route writes atomically. A failed batch does not publish partial progress. Collected passengers are distinct IDs in completed pickup logs. Missed passengers are scheduled passengers without a completed pickup; drop-offs never count as additional collected passengers.
 
 History queries completed trips by `driverId` or by `schemaVersion: 2` and `participantIds`, orders by `endedAt` descending in Firestore, and fetches the newest 50. Active-trip lookup filters by driver, date, shift and active/pending status. The required composite indexes are in `firestore.indexes.json`. The detail view also checks account access.
 
+Passenger live tracking queries today's active schema-v2 trips for their specific community and driver, with a limit of 50. Current community members (including passengers joining during a trip) can read those shared records, but cannot read private routes or unsafe legacy trips. Leaving a community revokes live tracking access; completed summaries retain departure membership access. Pickup status reads `collectedPassengerIds`, so it does not require the private stop log. The existing driver `LocationPermissionGate` and live location watcher are preserved. Queued watcher callbacks and old passenger subscriptions are ignored after cleanup.
+
 ## Firebase setup required before release
 
-The live rules supplied during review allow anyone to read/write all documents until December 31, 2026. A private subcollection alone cannot protect route data under those rules. This change supplies `firestore.rules`, which restricts trips to their driver or historical members of completed schema-v2 trips, restricts private routes to their driver, and requires bounded list queries. Shared writes reject legacy route fields and preserve historical membership. The broad temporary rule excludes the entire `trips` subtree so it cannot override these restrictions. Other collections retain the supplied temporary policy.
+The live rules supplied during review allow anyone to read/write all documents until December 31, 2026. A private subcollection alone cannot protect route data under those rules. This change supplies `firestore.rules`, which permits active schema-v2 tracking for current community members and completed summaries for departure members, restricts private routes to their driver, and requires bounded list queries. Shared writes reject legacy route fields, preserve historical membership and validate driver GPS fields. Completed records cannot contain a GPS fix. The broad temporary rule excludes the entire `trips` subtree so it cannot override these restrictions. Other collections retain the supplied temporary policy.
 
 These replacement rules and indexes are **local files, not deployed changes**. Before releasing the application, the Firebase project owner must publish the replacement rules in **Firestore Database → Rules** and provision the indexes from `firestore.indexes.json` in **Firestore Database → Indexes**, or deploy both through Firebase CLI. Do not keep the original broad `/{document=**}` allow alongside the new trip rules. The emulator validates permissions and actual application queries; it does not verify production index provisioning.
+
+Deployment responsibility: **Firebase project owner / repository maintainer** for `transportapp-54704`. The local Firebase CLI has no authorized accounts, so deployment could not be performed from this checkout. After authenticating an account with deployment permissions, run:
+
+```sh
+firebase deploy --only firestore:rules,firestore:indexes --project transportapp-54704 --config firebase.emulator.json
+```
+
+Release order: merge the reviewed app changes, deploy these rules and indexes, wait until the required indexes are ready, then release the app. Verify driver GPS updates, passenger tracking/pickup status, and both roles' history against that project before release. These rules intentionally deny passenger reads of legacy active documents; drivers must resume them with the updated app to migrate their route into private storage. Updating existing driver and passenger clients is required for the schema-v2 tracking query.
 
 ## Older trips
 
@@ -46,7 +57,7 @@ npx expo-doctor@latest
 npx expo export --platform android --platform ios --output-dir .expo/trip-validation-export --max-workers 2
 ```
 
-The app test suite covers summary calculations, mixed pickup/drop-off stops, early endings, historical passenger access, legacy records, read failures, resumed routes, duplicate taps, failed/retried completion writes and cached refresh behavior. The rules suite requires Java 21+ and runs against the isolated `demo-trip-review` emulator project, never the live Firebase project. It exercises the actual repository queries/writes and verifies member, driver, anonymous and private-route permissions.
+The app test suite covers summary calculations, mixed pickup/drop-off stops, early endings, historical passenger access, legacy records, read failures, resumed routes, duplicate taps, failed/retried completion writes, cached refresh behavior, schema-v2 pickup status and passenger subscription cleanup. The rules suite requires Java 21+ and runs against the isolated `demo-trip-review` emulator project, never the live Firebase project. It exercises the actual repository queries/writes and verifies member, driver, anonymous and private-route permissions, valid/invalid GPS updates, live tracking for current/new members, denied legacy access, access after leaving, migration while sharing GPS, and atomic removal of the GPS fix on completion.
 
 The reusable Expo Go smoke-test script is maintained on a separate tooling branch as requested in review. Automated validation here checks Expo Doctor, SDK compatibility, Android/iOS Expo Go manifests and development bundles, including both new screens. It does not simulate phone interaction or writes against live Firestore. The production export separately verifies Android and iOS Hermes bundles.
 
