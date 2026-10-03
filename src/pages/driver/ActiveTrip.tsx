@@ -16,6 +16,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import { useActiveTrip } from '@hooks/useActiveTrip';
+import { useLiveLocation } from '@hooks/useLiveLocation';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
 import LocationPermissionGate from '@components/location/LocationPermissionGate';
@@ -89,6 +90,9 @@ function ActiveTripContent() {
   // ── Trip state ──────────────────────────────────────────────────────────────
   const { trip, loading: tripLoading, error: tripError, startTrip, completeStop, endTrip } =
     useActiveTrip();
+
+  // ── Share live position with passengers while the trip is active ───────────
+  useLiveLocation({ tripId: trip.tripId, enabled: trip.status === 'active' });
 
   // ── Directions ──────────────────────────────────────────────────────────────
   const {

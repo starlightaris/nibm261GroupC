@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { usePassengerCommunity, type PassengerCommunity } from './usePassengerCommunity';
 import { estimateEta, type Eta } from '../utils/eta';
+import { isPickedUp, secondsSince } from '../utils/tripProgress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,9 +142,7 @@ export function usePassengerTrack(): UsePassengerTrackResult {
           setTrip({
             tripId: latest.id,
             driverLocation: parseDriverLocation(data.driverLocation),
-            pickedUp:
-              Array.isArray(data.stops) &&
-              data.stops.some((s: any) => s?.userId === uid),
+            pickedUp: isPickedUp(data.completedStops, uid),
           });
         }
         setTripError(null);
@@ -173,12 +172,10 @@ export function usePassengerTrack(): UsePassengerTrackResult {
   const pickedUp = trip?.pickedUp ?? false;
   const pickup = community?.member.pickupLocation ?? null;
 
-  const secondsSinceUpdate = useMemo(() => {
-    if (!driverLocation?.updatedAt) return null;
-    const written = Date.parse(driverLocation.updatedAt);
-    if (isNaN(written)) return null;
-    return Math.max(0, Math.round((now - written) / 1000));
-  }, [driverLocation, now]);
+  const secondsSinceUpdate = useMemo(
+    () => secondsSince(driverLocation?.updatedAt, now),
+    [driverLocation, now]
+  );
 
   const isStale =
     secondsSinceUpdate !== null && secondsSinceUpdate > STALE_AFTER_SECONDS;

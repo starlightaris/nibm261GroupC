@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect } from 'react';
 import * as Location from 'expo-location';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
@@ -14,10 +14,8 @@ export interface LiveLocationOptions {
 
 function isValidCoord(lat: number, lng: number): boolean {
   return (
-    typeof lat === 'number' &&
-    typeof lng === 'number' &&
-    !isNaN(lat) &&
-    !isNaN(lng) &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
     lat >= -90 &&
     lat <= 90 &&
     lng >= -180 &&
@@ -27,79 +25,51 @@ function isValidCoord(lat: number, lng: number): boolean {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Writes the driver's position to trips/{tripId}.driverLocation while `enabled`.
+ *
+ * Does not ask for permission: the Active Trip screen is wrapped in
+ * LocationPermissionGate, so foreground access is already granted by the time
+ * this runs. If it has been revoked, the watch fails and sharing silently stops.
+ */
 export function useLiveLocation({ tripId, enabled }: LiveLocationOptions) {
-  const watchRef    = useRef<Location.LocationSubscription | null>(null);
-  const cancelledRef = useRef(false);
-
-  // ── Permission request ──────────────────────────────────────────────────────
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    return status === 'granted';
-  }, []);
-
-  // ── Save location to Firestore ──────────────────────────────────────────────
-  const saveLocation = useCallback(
-    async (lat: number, lng: number, heading: number | null) => {
-      if (!tripId) return;
-
-      //validate before saving
-      if (!isValidCoord(lat, lng)) {
-        console.warn('[useLiveLocation] Invalid coordinates, skipping');
-        return;
-      }
-
-      try {
-        await updateDoc(doc(db, 'trips', tripId), {
-          driverLocation: {
-            latitude:  lat,
-            longitude: lng,
-            heading:   heading ?? null,
-            updatedAt: new Date().toISOString(),
-          },
-        });
-      } catch (err) {
-        console.error('[useLiveLocation] Save failed:', err);
-      }
-    },
-    [tripId]
-  );
-
-  // ── Start / stop tracking ───────────────────────────────────────────────────
   useEffect(() => {
     if (!enabled || !tripId) return;
 
-    cancelledRef.current = false;
+    let cancelled = false;
+    let subscription: Location.LocationSubscription | null = null;
 
-    // request permission then start foreground tracking
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status !== 'granted' || cancelledRef.current) return;
-
-      Location.watchPositionAsync(
-        {
-          accuracy:         Location.Accuracy.High,
-          timeInterval:     5000,  //  every 5 seconds
-          distanceInterval: 5,
-        },
-        (location) => {
-          const { latitude, longitude, heading } = location.coords;
-          saveLocation(latitude, longitude, heading ?? null);
+    Location.watchPositionAsync(
+      {
+        accuracy:         Location.Accuracy.High,
+        timeInterval:     5000,
+        distanceInterval: 5,
+      },
+      ({ coords }) => {
+        if (!isValidCoord(coords.latitude, coords.longitude)) {
+          console.warn('[useLiveLocation] Invalid coordinates, skipping');
+          return;
         }
-      ).then((sub) => {
-        if (cancelledRef.current) {
-          sub.remove();
-        } else {
-          watchRef.current = sub;
-        }
-      });
-    });
 
-    // stop when trip ends or screen unmounts
+        updateDoc(doc(db, 'trips', tripId), {
+          driverLocation: {
+            latitude:  coords.latitude,
+            longitude: coords.longitude,
+            heading:   coords.heading ?? null,
+            updatedAt: new Date().toISOString(),
+          },
+        }).catch((err) => console.error('[useLiveLocation] Save failed:', err));
+      }
+    )
+      .then((sub) => {
+        if (cancelled) sub.remove();
+        else subscription = sub;
+      })
+      .catch((err) => console.warn('[useLiveLocation] Could not start watching:', err));
+
     return () => {
-      cancelledRef.current = true;
-      watchRef.current?.remove();
-      watchRef.current = null;
+      cancelled = true;
+      subscription?.remove();
     };
-  }, [enabled, tripId, saveLocation]);
-
-  return { requestPermission };
+  }, [enabled, tripId]);
 }
