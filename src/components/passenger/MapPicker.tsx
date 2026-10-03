@@ -9,7 +9,6 @@ import {
   Keyboard,
 } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
-import * as Location from 'expo-location';
 import { searchPlaces, getPlaceLocation, PlaceSuggestion } from '@services/placesService';
 
 // How long to wait after the last keystroke before searching — avoids
@@ -41,7 +40,6 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
     initialLocation?.address ?? 'Dragging map to pick...'
   );
   const [loadingAddress, setLoadingAddress] = useState<boolean>(false);
-  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapLoadFailed, setMapLoadFailed] = useState(false);
   const [mapInstanceKey, setMapInstanceKey] = useState(0);
@@ -57,22 +55,6 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
   // selection, so the debounce effect below knows this particular change
   // didn't come from typing and shouldn't trigger another search.
   const skipNextSearchRef = useRef(false);
-
-  // Request foreground location permission once on mount. Denial isn't
-  // fatal — the passenger can still search or drop a pin manually — so
-  // this only toggles showsUserLocation and a small heads-up banner,
-  // it never blocks the picker.
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        setLocationPermissionDenied(status !== 'granted');
-      } catch (err) {
-        console.error('[MapPicker] permission request failed', err);
-        setLocationPermissionDenied(true);
-      }
-    })();
-  }, []);
 
   // Debounced place search as the user types.
   useEffect(() => {
@@ -226,14 +208,6 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
         )}
       </View>
 
-      {locationPermissionDenied && (
-        <View style={styles.permissionBanner}>
-          <Text style={styles.permissionBannerText}>
-            Location access is off — search for an address or drag the pin manually.
-          </Text>
-        </View>
-      )}
-
       <MapView
         key={mapInstanceKey}
         ref={mapRef}
@@ -250,7 +224,11 @@ export default function MapPicker({ mode, onLocationConfirmed, initialLocation }
         }
         onRegionChangeComplete={onRegionChangeComplete}
         onMapReady={() => setMapReady(true)}
-        showsUserLocation={!locationPermissionDenied}
+        // Permission is owned by LocationPermissionGate, which wraps every
+        // screen this component is used in — if it isn't actually granted,
+        // the native map simply shows no blue dot, no error. No local
+        // permission state needed here.
+        showsUserLocation
       />
 
       <View style={styles.centerPinContainer} pointerEvents="none">
@@ -295,8 +273,6 @@ const styles = StyleSheet.create({
   pinPoint: { width: 4, height: 10, backgroundColor: '#1D3557' },
   addressDisplayCard: { position: 'absolute', bottom: 10, width: '90%', alignSelf: 'center', backgroundColor: '#FFF', padding: 15, borderRadius: 8, elevation: 2, alignItems: 'center' },
   addressText: { fontSize: 14, fontWeight: '600', color: '#1D3557', textAlign: 'center' },
-  permissionBanner: { position: 'absolute', top: 58, width: '90%', alignSelf: 'center', zIndex: 1, backgroundColor: '#FFF3CD', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
-  permissionBannerText: { fontSize: 12, color: '#8A6D1D', textAlign: 'center' },
   mapErrorContainer: { alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#FFF' },
   mapErrorTitle: { fontSize: 16, fontWeight: '700', color: '#1D3557', marginBottom: 6 },
   mapErrorSubtitle: { fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 18 },
