@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import Constants from 'expo-constants';
 import { usePassengerTrack } from '@hooks/usePassengerTrack';
+import { usePassengerRoute } from '@hooks/usePassengerRoute';
 import { Colors, Radius, Spacing, Typography } from '@styles/tokens';
 import { formatDistance, formatEta } from '../../utils/eta';
+
+// Same key the driver's ActiveTrip screen uses for directions.
+const MAPS_API_KEY: string = Constants.expoConfig?.extra?.googleMapsApiKey ?? '';
 
 export default function TrackScreen() {
   const {
@@ -22,6 +27,21 @@ export default function TrackScreen() {
   const [mapReady, setMapReady] = useState(false);
 
   const pickup = community?.member.pickupLocation ?? null;
+  const driverCoord = driverLocation
+    ? { latitude: driverLocation.latitude, longitude: driverLocation.longitude }
+    : null;
+
+  // Road route from the bus to the passenger's pickup. Throttled inside the
+  // hook (distance + time gate) so it doesn't re-request on every 5s write,
+  // and switched off once the passenger has been picked up.
+  const { path: routePath, isFallback } = usePassengerRoute({
+    origin: driverCoord,
+    destination: pickup
+      ? { latitude: pickup.latitude, longitude: pickup.longitude }
+      : null,
+    apiKey: MAPS_API_KEY,
+    enabled: state === 'live' && !pickedUp && pickup != null,
+  });
 
   // Frame driver + pickup once when the map first has a fix. After that the
   // passenger keeps control of pan/zoom; we don't fight their gestures.
@@ -85,7 +105,7 @@ export default function TrackScreen() {
     );
   }
 
-  if (state === 'locating' || !driverLocation) {
+  if (state === 'locating' || !driverLocation || !driverCoord) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -96,11 +116,6 @@ export default function TrackScreen() {
   }
 
   // ── Live map ────────────────────────────────────────────────────────────────
-  const driverCoord = {
-    latitude: driverLocation.latitude,
-    longitude: driverLocation.longitude,
-  };
-
   return (
     <View style={styles.container}>
       <MapView
@@ -110,6 +125,15 @@ export default function TrackScreen() {
         initialRegion={{ ...driverCoord, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
         onMapReady={() => setMapReady(true)}
       >
+        {routePath.length > 1 && (
+          <Polyline
+            coordinates={routePath}
+            strokeColor={Colors.primary}
+            strokeWidth={4}
+            lineDashPattern={isFallback ? [10, 8] : undefined}
+          />
+        )}
+
         <Marker
           coordinate={driverCoord}
           rotation={driverLocation.heading ?? 0}
