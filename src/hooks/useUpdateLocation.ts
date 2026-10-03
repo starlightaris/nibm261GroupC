@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { auth } from '../../firebaseConfig';
 import { updateMemberLocation, MemberLocation } from '@services/communityLocationService';
+import { validateLocationSelection } from '@utils/locationValidation';
 
 interface SaveLocationResult {
   success: boolean;
@@ -8,7 +9,7 @@ interface SaveLocationResult {
 }
 
 /**
- * Handles saving a passenger's pickup/drop-off location to Firestore.
+ * Validates and saves a passenger's pickup/drop-off location to Firestore.
  * Writes into communities/{communityId}.members[] — that's the store
  * the join flow, the driver's route, and this screen all read from.
  * Extracted from EditLocations screen so the screen only renders.
@@ -28,6 +29,11 @@ export function useUpdateLocation() {
     }
     if (!communityId) {
       return { success: false, error: 'Join a community before setting locations.' };
+    }
+
+    const validationError = validateLocationSelection(location);
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     setIsSaving(true);
