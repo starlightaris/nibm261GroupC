@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsTrip(data) {
+      return signedIn() && data.driverId == request.auth.uid;
+    }
+
+    function canReadTrip(data) {
+      return ownsTrip(data) || (
+        signedIn()
+        && data.get('schemaVersion', 0) == 2
+        && (
+          (data.status == 'completed' && request.auth.uid in data.participantIds)
+          || (data.status == 'active'
+            && request.auth.uid in get(/databases/$(database)/documents/communities/$(data.communityId)).data.memberIds)
+        )
+      );
+    }
+
+    function safeDriverLocation(data) {
+      return !('driverLocation' in data) || (
+        data.status == 'active'
+        && data.driverLocation.keys().hasAll(['latitude', 'longitude', 'heading', 'updatedAt'])
+        && data.driverLocation.keys().hasOnly(['latitude', 'longitude', 'heading', 'updatedAt'])
+        && data.driverLocation.latitude is number
+        && data.driverLocation.latitude >= -90 && data.driverLocation.latitude <= 90
+        && data.driverLocation.longitude is number
+        && data.driverLocation.longitude >= -180 && data.driverLocation.longitude <= 180
+        && (data.driverLocation.heading == null || (data.driverLocation.heading is number
+          && data.driverLocation.heading >= -1 && data.driverLocation.heading <= 360))
+        && data.driverLocation.updatedAt is string
+      );
+    }
+
+    function safeTrip(data) {
+      return data.schemaVersion == 2
+        && data.keys().hasOnly([
+          'schemaVersion', 'driverId', 'communityId', 'date', 'shift', 'status',
+          'startedAt', 'endedAt', 'plannedStopIds', 'plannedPassengerIds',
+          'completedStopIds', 'collectedPassengerIds', 'participantIds',
+          'totalStopsPlanned', 'passengersPlanned', 'summary', 'driverLocation'
+        ])
+        && safeDriverLocation(data)
+        && data.status in ['active', 'completed']
+        && data.shift in ['morning', 'evening']
+        && data.plannedStopIds is list
+        && data.plannedPassengerIds is list
+        && data.completedStopIds is list
+        && data.collectedPassengerIds is list
+        && data.participantIds is list
+        && (!('summary' in data) || data.summary.keys().hasOnly([
+          'totalStopsPlanned', 'stopsCompleted', 'passengersPlanned',
+          'passengersCollected', 'passengersMissed', 'durationSeconds'
+        ]));
+    }
+
+    match /trips/{tripId} {
+      allow get: if canReadTrip(resource.data);
+      allow list: if canReadTrip(resource.data)
+        && request.query.limit != null && request.query.limit <= 50;
+
+      allow create: if ownsTrip(request.resource.data)
+        && safeTrip(request.resource.data)
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver'
+        && get(/databases/$(database)/documents/communities/$(request.resource.data.communityId)).data.driverId == request.auth.uid;
+
+      allow update: if ownsTrip(resource.data)
+        && safeTrip(request.resource.data)
+        && request.resource.data.driverId == resource.data.driverId
+        && request.resource.data.communityId == resource.data.communityId
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.shift == resource.data.shift
+        && (resource.data.get('schemaVersion', 0) != 2 || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'participantIds', 'plannedStopIds', 'plannedPassengerIds', 'startedAt',
+          'totalStopsPlanned', 'passengersPlanned'
+        ]));
+
+      match /private/route {
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid;
+        allow write: if signedIn()
+          && getAfter(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid;
+      }
+    }
+
+    // Preserve the supplied temporary policy for other app collections.
+    // Crucially, it must exclude the entire trips subtree: a broad allow
+    // would otherwise override the specific trip/private rules above.
+    match /{collection}/{document=**} {
+      allow read, write: if collection != 'trips'
+        && request.time < timestamp.date(2026, 12, 31);
+    }
+  }
+}

@@ -46,6 +46,7 @@ export function useLiveLocation({ tripId, enabled }: LiveLocationOptions) {
         distanceInterval: 5,
       },
       ({ coords }) => {
+        if (cancelled) return;
         if (!isValidCoord(coords.latitude, coords.longitude)) {
           console.warn('[useLiveLocation] Invalid coordinates, skipping');
           return;

@@ -48,13 +48,14 @@ export type PassengerTabParams = {
 };
 
 export type RootStackParams = {
-  DriverTabs:    undefined;
+  DriverTabs:    NavigatorScreenParams<DriverTabParams> | undefined;
   PassengerTabs: undefined;
   ActiveTrip: {
     stops:       TripStop[];
     shift:       Shift;
     communityId: string;
   };
+  TripSummary: { tripId: string; completedNow?: boolean };
 };
 
 export type SettingsStackParams = {
@@ -64,6 +65,7 @@ export type SettingsStackParams = {
   VehicleDetails:          undefined;
   NotificationPreferences: undefined;
   TripHistory:             undefined;
+  TripSummary:             { tripId: string; completedNow?: boolean };
 };
 
 export type PassengerRootParams = {
