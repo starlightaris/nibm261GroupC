@@ -8,7 +8,6 @@ import { db } from '../../firebaseConfig';
 // Show notifications while the app is in the foreground too.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
