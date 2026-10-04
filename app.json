@@ -2,6 +2,7 @@
   "expo": {
     "name": "TransportApp",
     "slug": "TransportApp",
+    "scheme": "transportapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,9 +18,6 @@
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
