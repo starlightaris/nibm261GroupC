@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
@@ -8,6 +8,8 @@ import { db } from '../../firebaseConfig';
 export interface LiveLocationOptions {
   tripId:  string | null;
   enabled: boolean;
+  /** Called with each valid position, so other features can share this watcher. */
+  onPosition?: (coords: { latitude: number; longitude: number }) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,7 +34,11 @@ function isValidCoord(lat: number, lng: number): boolean {
  * LocationPermissionGate, so foreground access is already granted by the time
  * this runs. If it has been revoked, the watch fails and sharing silently stops.
  */
-export function useLiveLocation({ tripId, enabled }: LiveLocationOptions) {
+export function useLiveLocation({ tripId, enabled, onPosition }: LiveLocationOptions) {
+  // Ref so a changing callback never restarts the location watch.
+  const onPositionRef = useRef(onPosition);
+  onPositionRef.current = onPosition;
+
   useEffect(() => {
     if (!enabled || !tripId) return;
 
@@ -51,6 +57,8 @@ export function useLiveLocation({ tripId, enabled }: LiveLocationOptions) {
           console.warn('[useLiveLocation] Invalid coordinates, skipping');
           return;
         }
+
+        onPositionRef.current?.(coords);
 
         updateDoc(doc(db, 'trips', tripId), {
           driverLocation: {

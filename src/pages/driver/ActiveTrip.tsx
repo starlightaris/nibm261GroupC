@@ -18,6 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import { useActiveTrip } from '@hooks/useActiveTrip';
 import { useLiveLocation } from '@hooks/useLiveLocation';
+import { useDriverApproaching } from '@hooks/useDriverApproaching';
 import type { RootStackParams } from '@navigation/types';
 import { useRouteDirections, LatLng } from '@hooks/useRouteDirections';
 import LocationPermissionGate from '@components/location/LocationPermissionGate';
@@ -92,7 +93,19 @@ function ActiveTripContent() {
     useActiveTrip();
 
   // ── Share live position with passengers while the trip is active ───────────
-  useLiveLocation({ tripId: trip.tripId, enabled: trip.status === 'active' });
+  // Same watcher also drives the "driver nearby" alert to waiting passengers.
+  const onDriverPosition = useDriverApproaching({
+    tripId: trip.tripId,
+    remainingStops: trip.remainingStops,
+    shift,
+    communityId,
+    enabled: trip.status === 'active',
+  });
+  useLiveLocation({
+    tripId: trip.tripId,
+    enabled: trip.status === 'active',
+    onPosition: onDriverPosition,
+  });
 
   // ── Directions ──────────────────────────────────────────────────────────────
   const {
