@@ -8,7 +8,8 @@
     "test:rules": "npx --yes firebase-tools@15.32.1 emulators:exec --only firestore --project demo-trip-review --config firebase.emulator.json \"node --import tsx --test tests/firestoreRules.cjs\"",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:expo-go": "node scripts/checkExpoGo.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
