@@ -21,6 +21,11 @@ export default function PassengerSettingsStack() {
         headerStyle:         { backgroundColor: '#FFFFFF' },
         headerShadowVisible: false,
         contentStyle:        { backgroundColor: '#F8FAFC' },
+        // Android defaults headerTitleAlign to 'left', which crowds the
+        // title right up against a custom headerLeft button (e.g.
+        // EditLocations' Cancel). Center it everywhere in this stack for
+        // consistent spacing on both platforms.
+        headerTitleAlign:    'center',
       }}
     >
       <Stack.Screen name="SettingsHome"            component={SettingsHome}  options={{ title: 'Settings' }} />

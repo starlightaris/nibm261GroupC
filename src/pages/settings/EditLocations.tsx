@@ -58,9 +58,17 @@ function EditLocationsContent({ route, navigation }: Props) {
       const dropoffStillNeeded = mode === 'Pickup' && community?.member.dropoffLocation == null;
 
       if (dropoffStillNeeded) {
-        navigation.replace('EditLocations', { mode: 'Drop-off' });
+        Alert.alert(
+          'Pickup location saved',
+          "Now let's set your drop-off point.",
+          [{ text: 'Continue', onPress: () => navigation.replace('EditLocations', { mode: 'Drop-off' }) }]
+        );
       } else {
-        navigation.navigate('SettingsHome');
+        Alert.alert(
+          `${mode} location saved`,
+          'Your driver will be able to see this location.',
+          [{ text: 'OK', onPress: () => navigation.navigate('SettingsHome') }]
+        );
       }
     } else if (error === 'You must be logged in to save locations.') {
       Alert.alert('Error', error);
@@ -68,6 +76,31 @@ function EditLocationsContent({ route, navigation }: Props) {
       Alert.alert('Save Failed', error ?? 'Could not save your location. Try again.');
     }
   };
+
+  // Defensive, not just a UX nicety: SettingsHome and the onboarding prompt
+  // both already hide this screen's entry points from non-members, but a
+  // passenger can still land here with no community if they're removed by
+  // the driver while this screen is already open/queued on the stack, or
+  // via a stale deep link. Block edits rather than letting them save to a
+  // communityId that no longer applies to them.
+  if (!communityLoading && !community) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.blockedContainer}>
+          <Text style={styles.blockedTitle}>Join a community first</Text>
+          <Text style={styles.blockedSubtitle}>
+            You need to be part of a community before you can set a pickup or drop-off location.
+          </Text>
+          <TouchableOpacity
+            style={[styles.confirmButton, styles.blockedButton]}
+            onPress={() => navigation.getParent()?.navigate('PassengerHome')}
+          >
+            <Text style={styles.confirmButtonText}>Go to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -120,5 +153,9 @@ const styles = StyleSheet.create({
   actionPanel: { padding: 20, backgroundColor: '#FFF' },
   confirmButton: { backgroundColor: '#1D3557', padding: 16, borderRadius: 10, alignItems: 'center', height: 55, justifyContent: 'center' },
   disabledButton: { backgroundColor: '#A0A0A0' },
-  confirmButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
+  confirmButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  blockedContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  blockedTitle: { fontSize: 18, fontWeight: '700', color: '#1D3557', marginBottom: 8, textAlign: 'center' },
+  blockedSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 24 },
+  blockedButton: { width: '100%' }
 });
