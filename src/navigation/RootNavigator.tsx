@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import * as SplashScreen from 'expo-splash-screen';
 import { auth, db } from '../../firebaseConfig';
 
 import Login               from '@pages/auth/Login';
@@ -14,6 +14,7 @@ import DriverSignUpBus     from '@pages/auth/DriverSignUpBus';
 import DriverTabs    from '@navigation/DriverTabs';
 import PassengerTabs from '@navigation/PassengerTabs';
 import ActiveTrip    from '@pages/driver/ActiveTrip';
+import TripSummary   from '@pages/settings/TripSummary';
 
 import type {
   AuthStackParams,
@@ -25,9 +26,6 @@ import type { UserRole } from '../types/auth';
 const Auth          = createNativeStackNavigator<AuthStackParams>();
 const DriverRoot    = createNativeStackNavigator<RootStackParams>();
 const PassengerRoot = createNativeStackNavigator<PassengerRootParams>();
-
-// Minimum time the splash stays visible, however fast auth resolves.
-const MIN_SPLASH_MS = 1500;
 
 function AuthNavigator() {
   return (
@@ -53,6 +51,7 @@ function DriverNavigator() {
         component={ActiveTrip}
         options={{ animation: 'slide_from_bottom' }}
       />
+      <DriverRoot.Screen name="TripSummary" component={TripSummary} options={{ gestureEnabled: false }} />
     </DriverRoot.Navigator>
   );
 }
@@ -66,17 +65,9 @@ function PassengerNavigator() {
 }
 
 export default function RootNavigator() {
-  const [role,       setRole]       = useState<UserRole | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [minElapsed, setMinElapsed] = useState(false);
+  const [role,    setRole]    = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Minimum splash duration
-  useEffect(() => {
-    const t = setTimeout(() => setMinElapsed(true), MIN_SPLASH_MS);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Resolve Firebase auth and role in the background while the splash is visible
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
@@ -96,15 +87,13 @@ export default function RootNavigator() {
     return unsub;
   }, []);
 
-  const ready = !loading && minElapsed;
-
-  // Hide the native splash only when auth is resolved AND 1.5 s has passed
-  useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
-
-  // Native splash still covers the screen. Rendering nothing prevents a Login flash.
-  if (!ready) return null;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' }}>
+        <ActivityIndicator size="large" color="#1D4ED8" />
+      </View>
+    );
+  }
 
   if (role === 'driver')    return <DriverNavigator />;
   if (role === 'passenger') return <PassengerNavigator />;

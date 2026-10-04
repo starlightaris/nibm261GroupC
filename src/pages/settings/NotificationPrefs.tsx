@@ -13,7 +13,6 @@ import { Colors, Radius, Spacing } from '@styles/tokens';
 type Prefs = {
   enabled: boolean;              // master switch
   sound: boolean;
-  attendanceReminders: boolean;
   driverApproaching: boolean;
 };
 
@@ -26,7 +25,6 @@ export default function NotificationPrefsScreen() {
   const prefs: Prefs = {
     enabled: stored?.enabled !== false,
     sound: stored?.sound !== false,
-    attendanceReminders: stored?.attendanceReminders !== false,
     driverApproaching: stored?.driverApproaching !== false,
   };
 
@@ -92,7 +90,7 @@ export default function NotificationPrefsScreen() {
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 2,
-        channelId: 'default',
+        channelId: prefs.sound ? 'default' : 'silent',
       },
     });
     Alert.alert('Test sent', 'You should see an alert in a couple of seconds.');
@@ -114,7 +112,7 @@ export default function NotificationPrefsScreen() {
     ? 'Blocked on this phone. Turn on to allow alerts.'
     : prefs.enabled
       ? isPassenger
-        ? 'On. You will get shift reminders and driver arrival alerts.'
+        ? 'On. You will get an alert when your driver is close.'
         : 'On. Trip updates can reach this phone.'
       : 'Off. You will not get any alerts from this app.';
 
@@ -138,19 +136,6 @@ export default function NotificationPrefsScreen() {
             <Text style={styles.sectionLabel}>Choose your alerts</Text>
             <View style={[styles.card, optionsDisabled && styles.dimmed]}>
               <View style={styles.row}>
-                <View style={styles.rowText}>
-                  <Text style={styles.title}>Attendance reminders</Text>
-                  <Text style={styles.sub}>
-                    A reminder 15 minutes before each shift closes if you haven't marked yet
-                  </Text>
-                </View>
-                <Switch
-                  value={prefs.attendanceReminders}
-                  onValueChange={(v) => savePrefs({ attendanceReminders: v })}
-                  disabled={optionsDisabled}
-                />
-              </View>
-              <View style={[styles.row, styles.divider]}>
                 <View style={styles.rowText}>
                   <Text style={styles.title}>Driver arriving</Text>
                   <Text style={styles.sub}>

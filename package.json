@@ -5,6 +5,7 @@
   "scripts": {
     "start": "expo start",
     "test": "node --import tsx --test tests/*.test.mjs",
+    "test:rules": "npx --yes firebase-tools@15.32.1 emulators:exec --only firestore --project demo-trip-review --config firebase.emulator.json \"node --import tsx --test tests/firestoreRules.cjs\"",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
@@ -18,22 +19,20 @@
     "@react-navigation/native-stack": "^7.17.5",
     "babel-preset-expo": "~57.0.0",
     "expo": "~57.0.26",
-    "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~57.0.6",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.20",
+    "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.2",
     "expo-location": "~57.0.20",
     "expo-notifications": "~57.0.21",
     "expo-sharing": "~57.0.22",
-    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "firebase": "^12.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-google-places-autocomplete": "^2.6.4",
     "react-native-maps": "1.27.2",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "~5.7.0",
@@ -43,8 +42,10 @@
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
     "@types/react": "~19.2.4",
     "babel-plugin-module-resolver": "^5.0.3",
+    "react-test-renderer": "19.2.3",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },

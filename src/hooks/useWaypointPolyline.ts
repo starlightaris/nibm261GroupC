@@ -56,7 +56,7 @@ export function useWaypointPolyline({
       setError(null);
 
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.getForegroundPermissionsAsync();
         if (status !== 'granted') {
           setError('Location permission denied. Enable it in Settings to get directions.');
           return;

@@ -5,6 +5,7 @@ import EditProfile   from '@pages/settings/EditProfile';
 import EditLocations from '@pages/settings/EditLocations';
 import NotifPrefs    from '@pages/settings/NotificationPrefs';
 import TripHistory   from '@pages/settings/TripHistory';
+import TripSummary   from '@pages/settings/TripSummary';
 
 import type { SettingsStackParams } from '@navigation/types';
 
@@ -20,6 +21,11 @@ export default function PassengerSettingsStack() {
         headerStyle:         { backgroundColor: '#FFFFFF' },
         headerShadowVisible: false,
         contentStyle:        { backgroundColor: '#F8FAFC' },
+        // Android defaults headerTitleAlign to 'left', which crowds the
+        // title right up against a custom headerLeft button (e.g.
+        // EditLocations' Cancel). Center it everywhere in this stack for
+        // consistent spacing on both platforms.
+        headerTitleAlign:    'center',
       }}
     >
       <Stack.Screen name="SettingsHome"            component={SettingsHome}  options={{ title: 'Settings' }} />
@@ -27,6 +33,7 @@ export default function PassengerSettingsStack() {
       <Stack.Screen name="EditLocations"           component={EditLocations} options={{ title: 'My locations' }} />
       <Stack.Screen name="NotificationPreferences" component={NotifPrefs}    options={{ title: 'Notifications' }} />
       <Stack.Screen name="TripHistory"             component={TripHistory}   options={{ title: 'Trip history' }} />
+      <Stack.Screen name="TripSummary"             component={TripSummary}   options={{ title: 'Trip summary' }} />
     </Stack.Navigator>
   );
 }

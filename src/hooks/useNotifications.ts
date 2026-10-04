@@ -14,9 +14,7 @@ function routeFromNotification(response: Notifications.NotificationResponse, att
   }
   const nav = navigationRef as any;
 
-  if (type === 'attendance_reminder') {
-    nav.navigate('PassengerTabs', { screen: 'PassengerHome' });
-  } else if (type === 'driver_approaching') {
+  if (type === 'driver_approaching') {
     nav.navigate('PassengerTabs', { screen: 'Track' });
   }
 }

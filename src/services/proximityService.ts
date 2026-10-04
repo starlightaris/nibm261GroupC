@@ -18,10 +18,24 @@ export function etaMinutes(meters: number) {
   return Math.max(1, Math.round(meters / AVG_SPEED_M_PER_MIN));
 }
 
-export async function sendPush(to: string, title: string, body: string, data: object) {
+/**
+ * Sends through Expo's push service, which relays to FCM (Android) and APNs (iOS).
+ * Android sound is controlled by the channel, so a muted alert uses the 'silent' one.
+ */
+export async function sendPush(
+  to: string,
+  title: string,
+  body: string,
+  data: object,
+  { sound = true }: { sound?: boolean } = {},
+) {
   await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, title, body, sound: 'default', channelId: 'default', data }),
+    body: JSON.stringify({
+      to, title, body, data,
+      sound: sound ? 'default' : null,
+      channelId: sound ? 'default' : 'silent',
+    }),
   });
 }

@@ -16,7 +16,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export type NotificationType = 'attendance_reminder' | 'driver_approaching';
+export type NotificationType = 'driver_approaching';
 
 async function setupAndroidChannel() {
   if (Platform.OS !== 'android') return;
@@ -26,13 +26,21 @@ async function setupAndroidChannel() {
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#1D4ED8',
   });
+  // Used when the user turns "Sound" off: Android sets sound per channel.
+  await Notifications.setNotificationChannelAsync('silent', {
+    name: 'Silent',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: null,
+    vibrationPattern: [0],
+    lightColor: '#1D4ED8',
+  });
 }
 
 function explainPermission(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       'Stay in the loop',
-      'TransportApp uses notifications to remind you to mark attendance before the cutoff and to tell you when your driver is nearby.',
+      'TransportApp uses notifications to tell you when your driver is nearby.',
       [
         { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
         { text: 'Continue', onPress: () => resolve(true) },
